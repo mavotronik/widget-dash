@@ -36,8 +36,8 @@ export async function initDashboard({
   /** @type {(() => void) | null} */
   let onNavigateComplete = null;
 
-  function save() {
-    saveData(data);
+  async function save() {
+    return saveData(data);
   }
 
   function applyThemeToDom() {
@@ -150,15 +150,17 @@ export async function initDashboard({
     render({ animate: false });
   }
 
-  function deleteSelectedWidget() {
-    if (selectedWidgetId === null) return;
+  async function deleteSelectedWidget() {
+    if (selectedWidgetId === null) {
+      return { ok: false, error: "Виджет не выбран" };
+    }
 
     const screen = getCurrentScreen();
     screen.widgets = screen.widgets.filter((w) => w.id !== selectedWidgetId);
     selectedWidgetId = null;
     onSelectionChange?.();
-    save();
     render({ animate: false });
+    return save();
   }
 
   /**
@@ -270,10 +272,14 @@ export async function initDashboard({
     return false;
   }
 
-  /** @param {number} index @returns {boolean} */
-  function deleteScreen(index) {
-    if (data.screens.length <= 1) return false;
-    if (index < 0 || index >= data.screens.length) return false;
+  /** @param {number} index */
+  async function deleteScreen(index) {
+    if (data.screens.length <= 1) {
+      return { ok: false, error: "Нельзя удалить последний экран" };
+    }
+    if (index < 0 || index >= data.screens.length) {
+      return { ok: false, error: "Экран не найден" };
+    }
 
     data.screens.splice(index, 1);
 
@@ -285,10 +291,9 @@ export async function initDashboard({
 
     selectedWidgetId = null;
     onSelectionChange?.();
-    save();
     render({ animate: false });
     onScreenChange?.(data.currentScreen);
-    return true;
+    return save();
   }
 
   /** @param {number} index @returns {import("./data/defaults.js").Screen | null} */
@@ -300,19 +305,19 @@ export async function initDashboard({
     return data.screens.length;
   }
 
-  function addScreen() {
+  async function addScreen() {
     data.screens.push({
       name: `Экран ${data.screens.length + 1}`,
       widgets: [],
       transition: defaultTransition(),
     });
-    save();
     render({ animate: false });
     renderScreens();
+    return save();
   }
 
   /** @param {string} type */
-  function addWidget(type) {
+  async function addWidget(type) {
     const screen = getCurrentScreen();
 
     /** @type {import("./data/defaults.js").Widget} */
@@ -337,17 +342,19 @@ export async function initDashboard({
     screen.widgets.push(widget);
     selectedWidgetId = widget.id;
     onSelectionChange?.();
-    save();
     render({ animate: false });
+    return save();
   }
 
-  function applyTheme() {
-    if (!primaryColorInput || !backgroundColorInput) return;
+  async function applyTheme() {
+    if (!primaryColorInput || !backgroundColorInput) {
+      return { ok: false, error: "Не удалось применить тему" };
+    }
 
     data.theme.primary = primaryColorInput.value;
     data.theme.background = backgroundColorInput.value;
     applyThemeToDom();
-    save();
+    return save();
   }
 
   /** @param {() => void} callback */

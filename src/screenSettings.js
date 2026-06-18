@@ -1,4 +1,5 @@
 import { showConfirm } from "./confirmModal.js";
+import { runAction } from "./toast.js";
 
 /**
  * @param {object} options
@@ -17,7 +18,7 @@ import { showConfirm } from "./confirmModal.js";
  * @param {() => number} options.getScreenCount
  * @param {() => void} options.onChange
  * @param {() => void} options.onClose
- * @param {(index: number) => boolean} options.onDelete
+ * @param {(index: number) => import("./toast.js").ActionResult | Promise<import("./toast.js").ActionResult>} options.onDelete
  */
 export function initScreenSettings({
   modal,
@@ -154,7 +155,7 @@ export function initScreenSettings({
 
     const index = editingIndex;
     close();
-    onDelete(index);
+    await runAction("Удаление", () => onDelete(index));
   });
 
   return {

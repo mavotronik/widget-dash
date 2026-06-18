@@ -1,5 +1,6 @@
 import { uploadImage } from "./storage.js";
 import { showConfirm } from "./confirmModal.js";
+import { runAction, showError } from "./toast.js";
 
 const TYPE_NAMES = {
   clock: "Часы",
@@ -25,8 +26,10 @@ const TYPE_NAMES = {
  * @param {HTMLButtonElement} options.deleteBtn
  * @param {() => import("./data/defaults.js").Widget | null} options.getSelectedWidget
  * @param {() => void} options.onChange
+ * @param {() => void} options.onRender
  * @param {() => void} options.onClose
- * @param {() => void} options.onDelete
+ * @param {() => import("./toast.js").ActionResult | Promise<import("./toast.js").ActionResult>} options.onDelete
+ * @param {() => import("./toast.js").ActionResult | Promise<import("./toast.js").ActionResult>} options.onSave
  */
 export function initWidgetSettings({
   modal,
@@ -44,8 +47,10 @@ export function initWidgetSettings({
   deleteBtn,
   getSelectedWidget,
   onChange,
+  onRender,
   onClose,
   onDelete,
+  onSave,
 }) {
   function syncForm() {
     const widget = getSelectedWidget();
@@ -92,7 +97,7 @@ export function initWidgetSettings({
     });
 
     if (!confirmed) return;
-    onDelete();
+    await runAction("Удаление", () => onDelete());
   });
 
   modal.addEventListener("mousedown", (e) => {
@@ -147,9 +152,11 @@ export function initWidgetSettings({
       const { url } = await uploadImage(file);
       widget.url = url;
       urlInput.value = url;
-      onChange();
+      onRender();
+      await runAction("Загрузка", () => onSave());
     } catch (err) {
       console.error("Image upload failed:", err);
+      showError(err instanceof Error ? err.message : "Не удалось загрузить файл");
     }
 
     fileInput.value = "";

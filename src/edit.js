@@ -1,6 +1,7 @@
 import { initDashboard } from "./dashboard.js";
 import { initWidgetSettings } from "./widgetSettings.js";
 import { initScreenSettings } from "./screenSettings.js";
+import { runAction, createDebouncedActionNotifier } from "./toast.js";
 
 async function main() {
   /** @type {{ syncForm: () => void } | null} */
@@ -13,6 +14,8 @@ async function main() {
 
   /** @type {Awaited<ReturnType<typeof initDashboard>>} */
   let dashboardApi;
+
+  const notifyEdit = createDebouncedActionNotifier("Редактирование");
 
   function updateNextButtonVisibility() {
     const btn = document.getElementById("nextScreenBtn");
@@ -68,10 +71,12 @@ async function main() {
     getSelectedWidget: dashboardApi.getSelectedWidget,
     onChange: () => {
       dashboardApi.render();
-      dashboardApi.save();
+      notifyEdit(() => dashboardApi.save());
     },
+    onRender: () => dashboardApi.render(),
     onClose: () => dashboardApi.selectWidget(null),
     onDelete: () => dashboardApi.deleteSelectedWidget(),
+    onSave: () => dashboardApi.save(),
   });
 
   screenSettings = initScreenSettings({
@@ -90,18 +95,20 @@ async function main() {
     getScreenCount: () => dashboardApi.getScreenCount(),
     onChange: () => {
       dashboardApi.render();
-      dashboardApi.save();
+      notifyEdit(() => dashboardApi.save());
       scheduleAdvance();
     },
     onClose: () => {},
-    onDelete: (index) => {
-      dashboardApi.deleteScreen(index);
-      scheduleAdvance();
-    },
+    onDelete: (index) => dashboardApi.deleteScreen(index),
   });
 
-  document.getElementById("addScreenBtn").addEventListener("click", dashboardApi.addScreen);
-  document.getElementById("applyThemeBtn").addEventListener("click", dashboardApi.applyTheme);
+  document.getElementById("addScreenBtn").addEventListener("click", () => {
+    void runAction("Добавление", () => dashboardApi.addScreen());
+  });
+
+  document.getElementById("applyThemeBtn").addEventListener("click", () => {
+    void runAction("Сохранение", () => dashboardApi.applyTheme());
+  });
 
   const nextBtn = document.getElementById("nextScreenBtn");
   if (nextBtn) {
@@ -109,7 +116,9 @@ async function main() {
   }
 
   document.querySelectorAll("[data-widget]").forEach((btn) => {
-    btn.addEventListener("click", () => dashboardApi.addWidget(btn.dataset.widget));
+    btn.addEventListener("click", () => {
+      void runAction("Добавление", () => dashboardApi.addWidget(btn.dataset.widget));
+    });
   });
 
   setInterval(dashboardApi.updateLiveContent, 1000);
