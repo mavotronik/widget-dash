@@ -15,7 +15,42 @@ async function main() {
   /** @type {Awaited<ReturnType<typeof initDashboard>>} */
   let dashboardApi;
 
+  const AUTO_ADVANCE_KEY = "editAutoAdvanceEnabled";
+  let autoAdvanceEnabled = sessionStorage.getItem(AUTO_ADVANCE_KEY) === "true";
+
+  const autoAdvanceToggle = document.getElementById("autoAdvanceToggle");
+  const autoAdvanceIcon = document.getElementById("autoAdvanceIcon");
+  const autoAdvanceLabel = document.getElementById("autoAdvanceLabel");
+
   const notifyEdit = createDebouncedActionNotifier("Редактирование");
+
+  function updateAutoAdvanceUi() {
+    if (!autoAdvanceToggle || !autoAdvanceIcon || !autoAdvanceLabel) return;
+
+    autoAdvanceToggle.setAttribute("aria-pressed", String(autoAdvanceEnabled));
+    autoAdvanceToggle.classList.toggle("btn-secondary", !autoAdvanceEnabled);
+    autoAdvanceToggle.title = autoAdvanceEnabled
+      ? "Автопереход включён — нажмите, чтобы остановить"
+      : "Автопереход выключен — нажмите, чтобы включить";
+
+    autoAdvanceIcon.className = autoAdvanceEnabled
+      ? "mdi mdi-motion-play btn-icon"
+      : "mdi mdi-motion-pause btn-icon";
+    autoAdvanceLabel.textContent = autoAdvanceEnabled ? "Автопереход" : "Автопереход выкл";
+  }
+
+  function setAutoAdvanceEnabled(enabled) {
+    autoAdvanceEnabled = enabled;
+    sessionStorage.setItem(AUTO_ADVANCE_KEY, String(enabled));
+    updateAutoAdvanceUi();
+
+    if (!enabled && advanceTimer !== null) {
+      clearTimeout(advanceTimer);
+      advanceTimer = null;
+    } else if (enabled) {
+      scheduleAdvance();
+    }
+  }
 
   function updateNextButtonVisibility() {
     const btn = document.getElementById("nextScreenBtn");
@@ -33,6 +68,7 @@ async function main() {
     const screen = dashboardApi.getCurrentScreen();
     updateNextButtonVisibility();
 
+    if (!autoAdvanceEnabled) return;
     if (screen.transition.advanceMode !== "timer") return;
 
     advanceTimer = setTimeout(() => {
@@ -115,6 +151,14 @@ async function main() {
     nextBtn.addEventListener("click", () => dashboardApi.nextScreen());
   }
 
+  if (autoAdvanceToggle) {
+    autoAdvanceToggle.addEventListener("click", () => {
+      setAutoAdvanceEnabled(!autoAdvanceEnabled);
+    });
+  }
+
+  updateAutoAdvanceUi();
+
   document.querySelectorAll("[data-widget]").forEach((btn) => {
     btn.addEventListener("click", () => {
       void runAction("Добавление", () => dashboardApi.addWidget(btn.dataset.widget));
@@ -123,7 +167,7 @@ async function main() {
 
   setInterval(dashboardApi.updateLiveContent, 1000);
   widgetSettings.syncForm();
-  scheduleAdvance();
+  if (autoAdvanceEnabled) scheduleAdvance();
 }
 
 main();

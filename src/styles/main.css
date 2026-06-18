@@ -30,6 +30,16 @@ body {
   border-bottom: 2px solid var(--primary);
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.topbar-actions .btn {
+  margin-bottom: 0;
+}
+
 .btn {
   border: none;
   background: var(--primary);

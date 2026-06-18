@@ -16,7 +16,11 @@
     </a>
   </div>
   <div id="screenTitle">Dashboard</div>
-  <div>
+  <div class="topbar-actions">
+    <button type="button" class="btn btn-with-icon btn-secondary" id="autoAdvanceToggle" aria-pressed="false" title="Автопереход экранов по таймеру">
+      <span class="mdi mdi-motion-pause btn-icon" id="autoAdvanceIcon" aria-hidden="true"></span>
+      <span id="autoAdvanceLabel">Автопереход выкл</span>
+    </button>
     <button class="btn btn-with-icon" id="nextScreenBtn" hidden>
       <span class="mdi mdi-skip-next btn-icon" aria-hidden="true"></span>
       <span>Следующий экран</span>
