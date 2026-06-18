@@ -91,6 +91,17 @@ export async function initDashboard({
     render();
   }
 
+  function deleteSelectedWidget() {
+    if (selectedWidgetId === null) return;
+
+    const screen = data.screens[data.currentScreen];
+    screen.widgets = screen.widgets.filter((w) => w.id !== selectedWidgetId);
+    selectedWidgetId = null;
+    onSelectionChange?.();
+    save();
+    render();
+  }
+
   function render() {
     if (settingsMode && isInteracting()) return;
 
@@ -193,6 +204,7 @@ export async function initDashboard({
     applyTheme,
     getSelectedWidget,
     selectWidget,
+    deleteSelectedWidget,
     save,
   };
 }

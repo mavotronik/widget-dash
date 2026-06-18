@@ -21,9 +21,11 @@ const TYPE_NAMES = {
  * @param {HTMLInputElement} options.textInput
  * @param {HTMLInputElement} options.urlInput
  * @param {HTMLInputElement} options.fileInput
+ * @param {HTMLButtonElement} options.deleteBtn
  * @param {() => import("./data/defaults.js").Widget | null} options.getSelectedWidget
  * @param {() => void} options.onChange
  * @param {() => void} options.onClose
+ * @param {() => void} options.onDelete
  */
 export function initWidgetSettings({
   modal,
@@ -38,9 +40,11 @@ export function initWidgetSettings({
   textInput,
   urlInput,
   fileInput,
+  deleteBtn,
   getSelectedWidget,
   onChange,
   onClose,
+  onDelete,
 }) {
   function syncForm() {
     const widget = getSelectedWidget();
@@ -74,6 +78,11 @@ export function initWidgetSettings({
   }
 
   closeBtn.addEventListener("click", onClose);
+
+  deleteBtn.addEventListener("click", () => {
+    if (!getSelectedWidget()) return;
+    onDelete();
+  });
 
   modal.addEventListener("mousedown", (e) => {
     if (e.target === modal) {

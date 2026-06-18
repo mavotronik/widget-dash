@@ -28,12 +28,14 @@ async function main() {
     textInput: document.getElementById("widgetText"),
     urlInput: document.getElementById("widgetUrl"),
     fileInput: document.getElementById("widgetFile"),
+    deleteBtn: document.getElementById("widgetDeleteBtn"),
     getSelectedWidget: dashboardApi.getSelectedWidget,
     onChange: () => {
       dashboardApi.render();
       dashboardApi.save();
     },
     onClose: () => dashboardApi.selectWidget(null),
+    onDelete: () => dashboardApi.deleteSelectedWidget(),
   });
 
   document.getElementById("addScreenBtn").addEventListener("click", dashboardApi.addScreen);

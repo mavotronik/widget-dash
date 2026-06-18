@@ -44,6 +44,16 @@ body {
   opacity: 0.9;
 }
 
+.btn-danger {
+  background: #dc2626;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.btn-danger:hover {
+  background: #b91c1c;
+}
+
 .main {
   display: flex;
   height: calc(100vh - 60px);
