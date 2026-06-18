@@ -1,13 +1,14 @@
 import { defaultData } from "./data/defaults.js";
+import { normalizeDashboard } from "./data/migrate.js";
 
 /** @returns {Promise<import("./data/defaults.js").DashboardData>} */
 export async function loadData() {
   try {
     const res = await fetch("/api/dashboard");
-    if (!res.ok) return structuredClone(defaultData);
-    return res.json();
+    if (!res.ok) return normalizeDashboard(structuredClone(defaultData));
+    return normalizeDashboard(await res.json());
   } catch {
-    return structuredClone(defaultData);
+    return normalizeDashboard(structuredClone(defaultData));
   }
 }
 

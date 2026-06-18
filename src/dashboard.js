@@ -2,6 +2,8 @@ import { loadData, saveData } from "./storage.js";
 import { createWidgetElement, renderWidgetContent } from "./widgets.js";
 import { isInteracting, makeDraggable } from "./drag.js";
 import { makeResizable } from "./resize.js";
+import { defaultTransition } from "./data/defaults.js";
+import { playTransition, createScreenLayer } from "./screenTransitions.js";
 
 /**
  * @param {object} options
@@ -12,6 +14,8 @@ import { makeResizable } from "./resize.js";
  * @param {HTMLInputElement} [options.primaryColorInput]
  * @param {HTMLInputElement} [options.backgroundColorInput]
  * @param {() => void} [options.onSelectionChange]
+ * @param {(index: number) => void} [options.onScreenChange]
+ * @param {(screen: import("./data/defaults.js").Screen) => void} [options.onOpenScreenSettings]
  */
 export async function initDashboard({
   settingsMode,
@@ -21,10 +25,15 @@ export async function initDashboard({
   primaryColorInput,
   backgroundColorInput,
   onSelectionChange,
+  onScreenChange,
+  onOpenScreenSettings,
 }) {
   const data = await loadData();
   /** @type {number | null} */
   let selectedWidgetId = null;
+  let isTransitioning = false;
+  /** @type {(() => void) | null} */
+  let onNavigateComplete = null;
 
   function save() {
     saveData(data);
@@ -37,82 +46,25 @@ export async function initDashboard({
     if (backgroundColorInput) backgroundColorInput.value = data.theme.background;
   }
 
-  function renderScreens() {
-    if (!screenList) return;
-
-    screenList.innerHTML = "";
-
-    data.screens.forEach((screen, index) => {
-      const btn = document.createElement("button");
-      btn.className = "btn";
-      if (index === data.currentScreen) {
-        btn.classList.add("active-screen");
-      }
-      btn.textContent = screen.name;
-      btn.onclick = () => {
-        data.currentScreen = index;
-        selectedWidgetId = null;
-        onSelectionChange?.();
-        render();
-        save();
-      };
-      screenList.appendChild(btn);
-    });
+  /** @returns {import("./data/defaults.js").Screen} */
+  function getCurrentScreen() {
+    return data.screens[data.currentScreen];
   }
 
-  function updateLiveContent() {
-    const screen = data.screens[data.currentScreen];
-
-    screen.widgets.forEach((widget) => {
-      if (widget.type !== "clock" && widget.type !== "date") return;
-
-      const el = dashboard.querySelector(`[data-widget-id="${widget.id}"] .widget-content`);
-      if (el) {
-        el.innerHTML = renderWidgetContent(widget);
-      }
-    });
+  function getCurrentScreenIndex() {
+    return data.currentScreen;
   }
 
-  /** @returns {import("./data/defaults.js").Widget | null} */
-  function getSelectedWidget() {
-    if (selectedWidgetId === null) return null;
-    const screen = data.screens[data.currentScreen];
-    return screen.widgets.find((w) => w.id === selectedWidgetId) ?? null;
-  }
-
-  /** @param {number | null} id */
-  function selectWidget(id) {
-    if (selectedWidgetId === id) {
-      if (id !== null) onSelectionChange?.();
-      return;
-    }
-    selectedWidgetId = id;
-    onSelectionChange?.();
-    render();
-  }
-
-  function deleteSelectedWidget() {
-    if (selectedWidgetId === null) return;
-
-    const screen = data.screens[data.currentScreen];
-    screen.widgets = screen.widgets.filter((w) => w.id !== selectedWidgetId);
-    selectedWidgetId = null;
-    onSelectionChange?.();
-    save();
-    render();
-  }
-
-  function render() {
-    if (settingsMode && isInteracting()) return;
-
-    dashboard.innerHTML = "";
-
-    const screen = data.screens[data.currentScreen];
-    screenTitle.textContent = screen.name;
+  /**
+   * @param {import("./data/defaults.js").Screen} screen
+   * @param {HTMLElement} layerEl
+   */
+  function renderScreenContent(screen, layerEl) {
+    layerEl.innerHTML = "";
 
     screen.widgets.forEach((widget) => {
       const el = createWidgetElement(widget, settingsMode, selectedWidgetId);
-      dashboard.appendChild(el);
+      layerEl.appendChild(el);
 
       if (settingsMode) {
         makeDraggable(el, widget, save);
@@ -125,29 +77,242 @@ export async function initDashboard({
         });
       }
     });
+  }
 
+  function renderScreens() {
+    if (!screenList) return;
+
+    screenList.innerHTML = "";
+
+    data.screens.forEach((screen, index) => {
+      const item = document.createElement("div");
+      item.className = "screen-list-item";
+
+      const nameBtn = document.createElement("button");
+      nameBtn.type = "button";
+      nameBtn.className = "btn btn-screen-name";
+      if (index === data.currentScreen) {
+        nameBtn.classList.add("active-screen");
+      }
+      nameBtn.textContent = screen.name;
+      nameBtn.onclick = () => {
+        if (isTransitioning) return;
+        goToScreen(index, { animate: true });
+      };
+
+      const settingsBtn = document.createElement("button");
+      settingsBtn.type = "button";
+      settingsBtn.className = "btn btn-screen-settings";
+      settingsBtn.textContent = "⚙";
+      settingsBtn.title = "Настройки экрана";
+      settingsBtn.onclick = (e) => {
+        e.stopPropagation();
+        onOpenScreenSettings?.(index);
+      };
+
+      item.appendChild(nameBtn);
+      item.appendChild(settingsBtn);
+      screenList.appendChild(item);
+    });
+  }
+
+  function updateLiveContent() {
+    const screen = getCurrentScreen();
+    const layer = dashboard.querySelector(".screen-layer");
+    if (!layer) return;
+
+    screen.widgets.forEach((widget) => {
+      if (widget.type !== "clock" && widget.type !== "date") return;
+
+      const el = layer.querySelector(`[data-widget-id="${widget.id}"] .widget-content`);
+      if (el) {
+        el.innerHTML = renderWidgetContent(widget);
+      }
+    });
+  }
+
+  /** @returns {import("./data/defaults.js").Widget | null} */
+  function getSelectedWidget() {
+    if (selectedWidgetId === null) return null;
+    const screen = getCurrentScreen();
+    return screen.widgets.find((w) => w.id === selectedWidgetId) ?? null;
+  }
+
+  /** @param {number | null} id */
+  function selectWidget(id) {
+    if (selectedWidgetId === id) {
+      if (id !== null) onSelectionChange?.();
+      return;
+    }
+    selectedWidgetId = id;
+    onSelectionChange?.();
+    render({ animate: false });
+  }
+
+  function deleteSelectedWidget() {
+    if (selectedWidgetId === null) return;
+
+    const screen = getCurrentScreen();
+    screen.widgets = screen.widgets.filter((w) => w.id !== selectedWidgetId);
+    selectedWidgetId = null;
+    onSelectionChange?.();
+    save();
+    render({ animate: false });
+  }
+
+  /**
+   * @param {{ animate?: boolean }} [options]
+   */
+  function render(options = {}) {
+    if (settingsMode && isInteracting()) return;
+
+    const screen = getCurrentScreen();
+    screenTitle.textContent = screen.name;
+
+    dashboard.innerHTML = "";
+    const layer = createScreenLayer(dashboard);
+    renderScreenContent(screen, layer);
     renderScreens();
   }
 
-  function nextScreen() {
-    data.currentScreen = (data.currentScreen + 1) % data.screens.length;
+  /**
+   * @param {number} nextIndex
+   * @param {{ animate?: boolean }} [options]
+   */
+  async function goToScreen(nextIndex, options = {}) {
+    if (isTransitioning) return;
+    if (nextIndex < 0 || nextIndex >= data.screens.length) return;
+    if (nextIndex === data.currentScreen && options.animate) return;
+
+    const animate = options.animate ?? true;
+    const outgoingScreen = getCurrentScreen();
+    const incomingScreen = data.screens[nextIndex];
+    const transition = incomingScreen.transition;
+
+    if (!animate || transition.enterEffect === "none" || transition.animationDuration <= 0) {
+      data.currentScreen = nextIndex;
+      selectedWidgetId = null;
+      onSelectionChange?.();
+      render({ animate: false });
+      save();
+      onScreenChange?.(nextIndex);
+      onNavigateComplete?.();
+      return;
+    }
+
+    isTransitioning = true;
+
+    const outgoingLayer = dashboard.querySelector(".screen-layer") ?? createScreenLayer(dashboard);
+    renderScreenContent(outgoingScreen, outgoingLayer);
+
+    const incomingLayer = createScreenLayer(dashboard);
+    renderScreenContent(incomingScreen, incomingLayer);
+
+    screenTitle.textContent = incomingScreen.name;
+    renderScreens();
+
+    await playTransition(outgoingLayer, incomingLayer, transition);
+
+    data.currentScreen = nextIndex;
     selectedWidgetId = null;
     onSelectionChange?.();
-    render();
+
+    dashboard.innerHTML = "";
+    const layer = createScreenLayer(dashboard);
+    renderScreenContent(incomingScreen, layer);
+
+    isTransitioning = false;
+    save();
+    onScreenChange?.(nextIndex);
+    onNavigateComplete?.();
+  }
+
+  function nextScreen() {
+    if (isTransitioning) return;
+    const nextIndex = (data.currentScreen + 1) % data.screens.length;
+    goToScreen(nextIndex, { animate: true });
+  }
+
+  /**
+   * @param {string} key
+   * @returns {boolean}
+   */
+  function handleExternalEvent(key) {
+    if (isTransitioning) return false;
+
+    const current = getCurrentScreen();
+
+    if (
+      current.transition.advanceMode === "event" &&
+      current.transition.eventTrigger?.key === key
+    ) {
+      const trigger = current.transition.eventTrigger;
+      if (trigger.action === "goto" && trigger.targetScreenIndex != null) {
+        goToScreen(trigger.targetScreenIndex, { animate: true });
+      } else {
+        nextScreen();
+      }
+      return true;
+    }
+
+    const targetIndex = data.screens.findIndex(
+      (s) =>
+        s.transition.eventTrigger?.key === key &&
+        s.transition.eventTrigger?.action === "goto"
+    );
+
+    if (targetIndex >= 0) {
+      goToScreen(targetIndex, { animate: true });
+      return true;
+    }
+
+    return false;
+  }
+
+  /** @param {number} index @returns {boolean} */
+  function deleteScreen(index) {
+    if (data.screens.length <= 1) return false;
+    if (index < 0 || index >= data.screens.length) return false;
+
+    data.screens.splice(index, 1);
+
+    if (data.currentScreen >= data.screens.length) {
+      data.currentScreen = data.screens.length - 1;
+    } else if (data.currentScreen > index) {
+      data.currentScreen--;
+    }
+
+    selectedWidgetId = null;
+    onSelectionChange?.();
+    save();
+    render({ animate: false });
+    onScreenChange?.(data.currentScreen);
+    return true;
+  }
+
+  /** @param {number} index @returns {import("./data/defaults.js").Screen | null} */
+  function getScreen(index) {
+    return data.screens[index] ?? null;
+  }
+
+  function getScreenCount() {
+    return data.screens.length;
   }
 
   function addScreen() {
     data.screens.push({
       name: `Экран ${data.screens.length + 1}`,
       widgets: [],
+      transition: defaultTransition(),
     });
     save();
-    render();
+    render({ animate: false });
+    renderScreens();
   }
 
   /** @param {string} type */
   function addWidget(type) {
-    const screen = data.screens[data.currentScreen];
+    const screen = getCurrentScreen();
 
     /** @type {import("./data/defaults.js").Widget} */
     const widget = {
@@ -172,7 +337,7 @@ export async function initDashboard({
     selectedWidgetId = widget.id;
     onSelectionChange?.();
     save();
-    render();
+    render({ animate: false });
   }
 
   function applyTheme() {
@@ -184,6 +349,11 @@ export async function initDashboard({
     save();
   }
 
+  /** @param {() => void} callback */
+  function setOnNavigateComplete(callback) {
+    onNavigateComplete = callback;
+  }
+
   if (settingsMode) {
     dashboard.addEventListener("mousedown", () => {
       if (selectedWidgetId !== null) {
@@ -193,18 +363,26 @@ export async function initDashboard({
   }
 
   applyThemeToDom();
-  render();
+  render({ animate: false });
 
   return {
-    render,
+    render: () => render({ animate: false }),
     updateLiveContent,
     nextScreen,
+    goToScreen,
+    handleExternalEvent,
     addScreen,
     addWidget,
     applyTheme,
     getSelectedWidget,
+    getCurrentScreen,
+    getCurrentScreenIndex,
+    getScreen,
+    getScreenCount,
     selectWidget,
     deleteSelectedWidget,
+    deleteScreen,
+    setOnNavigateComplete,
     save,
   };
 }

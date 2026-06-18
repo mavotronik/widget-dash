@@ -93,6 +93,105 @@ body {
   overflow: hidden;
 }
 
+.screen-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.screen-list-item {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 5px;
+}
+
+.screen-list-item .btn-screen-name {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.screen-list-item .btn-screen-settings {
+  flex: 0 0 auto;
+  width: 36px;
+  padding: 8px;
+  margin-bottom: 0;
+}
+
+.screen-layer--outgoing.screen-effect-fade {
+  animation: screen-out-fade var(--transition-duration, 500ms) ease forwards;
+  animation-fill-mode: both;
+}
+
+.screen-layer--incoming.screen-effect-fade {
+  animation: screen-in-fade var(--transition-duration, 500ms) ease forwards;
+  animation-fill-mode: both;
+}
+
+.screen-layer--outgoing.screen-effect-slideDown {
+  animation: screen-out-slide-down var(--transition-duration, 500ms) ease forwards;
+  animation-fill-mode: both;
+}
+
+.screen-layer--incoming.screen-effect-slideDown {
+  animation: screen-in-slide-down var(--transition-duration, 500ms) ease forwards;
+  animation-fill-mode: both;
+}
+
+.screen-layer--outgoing.screen-effect-slideUp {
+  animation: screen-out-slide-up var(--transition-duration, 500ms) ease forwards;
+  animation-fill-mode: both;
+}
+
+.screen-layer--incoming.screen-effect-slideUp {
+  animation: screen-in-slide-up var(--transition-duration, 500ms) ease forwards;
+  animation-fill-mode: both;
+}
+
+.screen-layer--outgoing.screen-effect-overlay {
+  z-index: 1;
+}
+
+.screen-layer--incoming.screen-effect-overlay {
+  z-index: 2;
+  animation: screen-in-overlay var(--transition-duration, 500ms) ease forwards;
+  animation-fill-mode: both;
+}
+
+@keyframes screen-out-fade {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes screen-in-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes screen-out-slide-down {
+  from { transform: translateY(0); }
+  to { transform: translateY(100%); }
+}
+
+@keyframes screen-in-slide-down {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes screen-out-slide-up {
+  from { transform: translateY(0); }
+  to { transform: translateY(-100%); }
+}
+
+@keyframes screen-in-slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes screen-in-overlay {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .widget {
   position: absolute;
   background: var(--surface);

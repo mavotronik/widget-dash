@@ -1,21 +1,57 @@
 import { initDashboard } from "./dashboard.js";
 import { initWidgetSettings } from "./widgetSettings.js";
+import { initScreenSettings } from "./screenSettings.js";
 
 async function main() {
   /** @type {{ syncForm: () => void } | null} */
-  let settings = null;
+  let widgetSettings = null;
+  /** @type {ReturnType<typeof initScreenSettings> | null} */
+  let screenSettings = null;
 
-  const dashboardApi = await initDashboard({
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let advanceTimer = null;
+
+  /** @type {Awaited<ReturnType<typeof initDashboard>>} */
+  let dashboardApi;
+
+  function updateNextButtonVisibility() {
+    const btn = document.getElementById("nextScreenBtn");
+    if (!btn) return;
+    const screen = dashboardApi.getCurrentScreen();
+    btn.hidden = screen.transition.advanceMode !== "button";
+  }
+
+  function scheduleAdvance() {
+    if (advanceTimer !== null) {
+      clearTimeout(advanceTimer);
+      advanceTimer = null;
+    }
+
+    const screen = dashboardApi.getCurrentScreen();
+    updateNextButtonVisibility();
+
+    if (screen.transition.advanceMode !== "timer") return;
+
+    advanceTimer = setTimeout(() => {
+      dashboardApi.nextScreen();
+    }, screen.transition.displayDuration * 1000);
+  }
+
+  dashboardApi = await initDashboard({
     settingsMode: true,
     dashboard: document.getElementById("dashboard"),
     screenTitle: document.getElementById("screenTitle"),
     screenList: document.getElementById("screenList"),
     primaryColorInput: document.getElementById("primaryColor"),
     backgroundColorInput: document.getElementById("backgroundColor"),
-    onSelectionChange: () => settings?.syncForm(),
+    onSelectionChange: () => widgetSettings?.syncForm(),
+    onScreenChange: () => scheduleAdvance(),
+    onOpenScreenSettings: (index) => screenSettings?.open(index),
   });
 
-  settings = initWidgetSettings({
+  dashboardApi.setOnNavigateComplete(() => scheduleAdvance());
+
+  widgetSettings = initWidgetSettings({
     modal: document.getElementById("widgetSettingsModal"),
     title: document.getElementById("widgetSettingsTitle"),
     closeBtn: document.getElementById("widgetSettingsClose"),
@@ -38,15 +74,47 @@ async function main() {
     onDelete: () => dashboardApi.deleteSelectedWidget(),
   });
 
+  screenSettings = initScreenSettings({
+    modal: document.getElementById("screenSettingsModal"),
+    title: document.getElementById("screenSettingsTitle"),
+    closeBtn: document.getElementById("screenSettingsClose"),
+    nameInput: document.getElementById("screenName"),
+    advanceModeSelect: document.getElementById("screenAdvanceMode"),
+    timerFields: document.getElementById("screenTimerFields"),
+    displayDurationInput: document.getElementById("screenDisplayDuration"),
+    enterEffectSelect: document.getElementById("screenEnterEffect"),
+    animationDurationInput: document.getElementById("screenAnimationDuration"),
+    deleteBtn: document.getElementById("screenDeleteBtn"),
+    getEditingScreenIndex: () => screenSettings?.getEditingScreenIndex() ?? null,
+    getScreen: dashboardApi.getScreen,
+    getScreenCount: () => dashboardApi.getScreenCount(),
+    onChange: () => {
+      dashboardApi.render();
+      dashboardApi.save();
+      scheduleAdvance();
+    },
+    onClose: () => {},
+    onDelete: (index) => {
+      dashboardApi.deleteScreen(index);
+      scheduleAdvance();
+    },
+  });
+
   document.getElementById("addScreenBtn").addEventListener("click", dashboardApi.addScreen);
   document.getElementById("applyThemeBtn").addEventListener("click", dashboardApi.applyTheme);
+
+  const nextBtn = document.getElementById("nextScreenBtn");
+  if (nextBtn) {
+    nextBtn.addEventListener("click", () => dashboardApi.nextScreen());
+  }
 
   document.querySelectorAll("[data-widget]").forEach((btn) => {
     btn.addEventListener("click", () => dashboardApi.addWidget(btn.dataset.widget));
   });
 
   setInterval(dashboardApi.updateLiveContent, 1000);
-  settings.syncForm();
+  widgetSettings.syncForm();
+  scheduleAdvance();
 }
 
 main();

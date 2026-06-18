@@ -1,6 +1,18 @@
 /** @typedef {{ id: number, type: string, x: number, y: number, w: number, h: number, text?: string, url?: string, fontSize?: number, fontFamily?: string, color?: string }} Widget */
-/** @typedef {{ name: string, widgets: Widget[] }} Screen */
+/** @typedef {{ key: string, action: 'next' | 'goto', targetScreenIndex?: number }} EventTrigger */
+/** @typedef {{ advanceMode: 'timer' | 'button' | 'event', displayDuration: number, enterEffect: 'none' | 'fade' | 'slideUp' | 'slideDown' | 'overlay', animationDuration: number, eventTrigger?: EventTrigger }} ScreenTransition */
+/** @typedef {{ name: string, widgets: Widget[], transition: ScreenTransition }} Screen */
 /** @typedef {{ theme: { primary: string, background: string }, currentScreen: number, screens: Screen[] }} DashboardData */
+
+/** @returns {ScreenTransition} */
+export function defaultTransition() {
+  return {
+    advanceMode: "timer",
+    displayDuration: 15,
+    enterEffect: "fade",
+    animationDuration: 500,
+  };
+}
 
 /** @type {DashboardData} */
 export const defaultData = {
@@ -12,6 +24,7 @@ export const defaultData = {
   screens: [
     {
       name: "Главный",
+      transition: defaultTransition(),
       widgets: [
         { id: 1, type: "clock", x: 20, y: 20, w: 300, h: 120 },
         { id: 2, type: "date", x: 340, y: 20, w: 250, h: 120 },
@@ -37,6 +50,10 @@ export const defaultData = {
     },
     {
       name: "Второй экран",
+      transition: {
+        ...defaultTransition(),
+        enterEffect: "slideDown",
+      },
       widgets: [
         {
           id: 5,
