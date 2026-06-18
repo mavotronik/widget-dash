@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Designer</title>
+  <link rel="stylesheet" href="/src/styles/main.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <a class="btn" href="/">← Дашборд</a>
+  </div>
+  <div id="screenTitle">Dashboard</div>
+  <div></div>
+</div>
+
+<div class="main">
+  <aside class="sidebar active" id="sidebar">
+    <h3>Тема</h3>
+    <label for="primaryColor">Основной цвет</label>
+    <input type="color" id="primaryColor">
+    <label for="backgroundColor">Фон</label>
+    <input type="color" id="backgroundColor">
+    <button class="btn" id="applyThemeBtn">Применить</button>
+
+    <hr class="divider">
+
+    <h3>Экраны</h3>
+    <div class="screen-list" id="screenList"></div>
+    <button class="btn" id="addScreenBtn">+ Экран</button>
+
+    <hr class="divider">
+
+    <h3>Виджеты</h3>
+    <button class="btn" data-widget="clock">Часы</button>
+    <button class="btn" data-widget="date">Дата</button>
+    <button class="btn" data-widget="text">Текст</button>
+    <button class="btn" data-widget="image">Картинка</button>
+  </aside>
+
+  <div class="dashboard" id="dashboard"></div>
+</div>
+
+<script type="module" src="/src/edit.js"></script>
+</body>
+</html>

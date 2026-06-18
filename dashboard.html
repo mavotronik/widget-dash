@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Dashboard Designer</title>
+
+<style>
+
+:root{
+    --primary:#2196f3;
+    --background:#111827;
+    --surface:#1f2937;
+    --text:#ffffff;
+}
+
+*{
+    box-sizing:border-box;
+    margin:0;
+    padding:0;
+    font-family:Arial,sans-serif;
+}
+
+body{
+    background:var(--background);
+    color:var(--text);
+    overflow:hidden;
+}
+
+.topbar{
+    height:60px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 20px;
+    background:var(--surface);
+    border-bottom:2px solid var(--primary);
+}
+
+.btn{
+    border:none;
+    background:var(--primary);
+    color:white;
+    padding:8px 16px;
+    border-radius:6px;
+    cursor:pointer;
+}
+
+.btn:hover{
+    opacity:0.9;
+}
+
+.main{
+    display:flex;
+    height:calc(100vh - 60px);
+}
+
+.sidebar{
+    width:280px;
+    background:#151c27;
+    padding:15px;
+    overflow:auto;
+    display:none;
+}
+
+.sidebar.active{
+    display:block;
+}
+
+.dashboard{
+    flex:1;
+    position:relative;
+    overflow:hidden;
+}
+
+.widget{
+    position:absolute;
+    background:var(--surface);
+    border:1px solid rgba(255,255,255,0.15);
+    border-radius:12px;
+    overflow:hidden;
+    user-select:none;
+}
+
+.widget.dragging{
+    opacity:0.7;
+}
+
+.widget-header{
+    padding:8px;
+    background:rgba(255,255,255,0.08);
+    cursor:move;
+    font-size:12px;
+}
+
+.widget-content{
+    padding:15px;
+    height:calc(100% - 32px);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
+
+.clock{
+    font-size:48px;
+    font-weight:bold;
+}
+
+.date{
+    font-size:24px;
+}
+
+.text-widget{
+    font-size:20px;
+    text-align:center;
+}
+
+.image-widget img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+}
+
+input,
+select{
+    width:100%;
+    margin-bottom:10px;
+    padding:8px;
+}
+
+.screen-list button{
+    width:100%;
+    margin-bottom:5px;
+}
+
+.footer{
+    position:absolute;
+    bottom:10px;
+    left:50%;
+    transform:translateX(-50%);
+    background:rgba(0,0,0,0.4);
+    padding:8px 15px;
+    border-radius:10px;
+}
+
+</style>
+</head>
+<body>
+
+<div class="topbar">
+
+<div>
+    <button class="btn" onclick="toggleSettings()">⚙ Настройки</button>
+</div>
+
+<div id="screenTitle">
+    Dashboard
+</div>
+
+<div>
+    <button class="btn" onclick="nextScreen()">Следующий экран</button>
+</div>
+
+</div>
+
+<div class="main">
+
+<div class="sidebar" id="sidebar">
+
+<h3>Тема</h3>
+
+<label>Основной цвет</label>
+<input type="color" id="primaryColor">
+
+<label>Фон</label>
+<input type="color" id="backgroundColor">
+
+<button class="btn" onclick="applyTheme()">Применить</button>
+
+<hr style="margin:15px 0">
+
+<h3>Экраны</h3>
+
+<div class="screen-list" id="screenList"></div>
+
+<button class="btn" onclick="addScreen()">
++ Экран
+</button>
+
+<hr style="margin:15px 0">
+
+<h3>Виджеты</h3>
+
+<button class="btn" onclick="addWidget('clock')">Часы</button>
+<button class="btn" onclick="addWidget('date')">Дата</button>
+<button class="btn" onclick="addWidget('text')">Текст</button>
+<button class="btn" onclick="addWidget('image')">Картинка</button>
+
+</div>
+
+<div class="dashboard" id="dashboard"></div>
+
+</div>
+
+<script>
+
+const defaultData = {
+    theme:{
+        primary:"#2196f3",
+        background:"#111827"
+    },
+    currentScreen:0,
+    screens:[
+        {
+            name:"Главный",
+            widgets:[
+                {
+                    id:1,
+                    type:"clock",
+                    x:20,
+                    y:20,
+                    w:300,
+                    h:120
+                },
+                {
+                    id:2,
+                    type:"date",
+                    x:340,
+                    y:20,
+                    w:250,
+                    h:120
+                },
+                {
+                    id:3,
+                    type:"text",
+                    text:"Добро пожаловать",
+                    x:20,
+                    y:170,
+                    w:570,
+                    h:120
+                },
+                {
+                    id:4,
+                    type:"image",
+                    url:"https://picsum.photos/800/600",
+                    x:620,
+                    y:20,
+                    w:500,
+                    h:350
+                }
+            ]
+        },
+        {
+            name:"Второй экран",
+            widgets:[
+                {
+                    id:5,
+                    type:"text",
+                    text:"Экран №2",
+                    x:100,
+                    y:100,
+                    w:500,
+                    h:150
+                }
+            ]
+        }
+    ]
+};
+
+let data =
+JSON.parse(localStorage.getItem("dashboardData"))
+|| defaultData;
+
+let settingsMode = false;
+
+function save(){
+    localStorage.setItem(
+        "dashboardData",
+        JSON.stringify(data)
+    );
+}
+
+function render(){
+
+    const dashboard =
+        document.getElementById("dashboard");
+
+    dashboard.innerHTML="";
+
+    const screen =
+        data.screens[data.currentScreen];
+
+    document.getElementById("screenTitle")
+        .innerText = screen.name;
+
+    screen.widgets.forEach(widget=>{
+
+        const div =
+            document.createElement("div");
+
+        div.className="widget";
+
+        div.style.left=widget.x+"px";
+        div.style.top=widget.y+"px";
+        div.style.width=widget.w+"px";
+        div.style.height=widget.h+"px";
+
+        let content="";
+
+        if(widget.type==="clock"){
+            content=
+            `<div class="clock">${new Date().toLocaleTimeString()}</div>`;
+        }
+
+        if(widget.type==="date"){
+            content=
+            `<div class="date">${new Date().toLocaleDateString()}</div>`;
+        }
+
+        if(widget.type==="text"){
+            content=
+            `<div class="text-widget">${widget.text||"Текст"}</div>`;
+        }
+
+        if(widget.type==="image"){
+            content=
+            `<div class="image-widget" style="width:100%;height:100%">
+                <img src="${widget.url}">
+            </div>`;
+        }
+
+        div.innerHTML=`
+            ${settingsMode
+                ? '<div class="widget-header">'+widget.type+'</div>'
+                : ''
+            }
+            <div class="widget-content">
+                ${content}
+            </div>
+        `;
+
+        dashboard.appendChild(div);
+
+        if(settingsMode){
+            makeDraggable(div, widget);
+        }
+    });
+
+    renderScreens();
+}
+
+function renderScreens(){
+
+    const list =
+        document.getElementById("screenList");
+
+    list.innerHTML="";
+
+    data.screens.forEach((screen,index)=>{
+
+        const btn =
+            document.createElement("button");
+
+        btn.className="btn";
+        btn.innerText=screen.name;
+
+        btn.onclick=()=>{
+            data.currentScreen=index;
+            render();
+            save();
+        };
+
+        list.appendChild(btn);
+    });
+}
+
+function toggleSettings(){
+
+    settingsMode = !settingsMode;
+
+    document.getElementById("sidebar")
+        .classList.toggle("active");
+
+    render();
+}
+
+function nextScreen(){
+
+    data.currentScreen++;
+
+    if(data.currentScreen >= data.screens.length)
+        data.currentScreen = 0;
+
+    render();
+}
+
+function addScreen(){
+
+    data.screens.push({
+        name:"Экран "+(data.screens.length+1),
+        widgets:[]
+    });
+
+    save();
+    render();
+}
+
+function addWidget(type){
+
+    const screen =
+        data.screens[data.currentScreen];
+
+    const widget={
+        id:Date.now(),
+        type,
+        x:50,
+        y:50,
+        w:250,
+        h:120
+    };
+
+    if(type==="text"){
+        widget.text="Новый текст";
+    }
+
+    if(type==="image"){
+        widget.url=
+        "https://picsum.photos/600/400?random="
+        + Math.random();
+        widget.h=250;
+    }
+
+    screen.widgets.push(widget);
+
+    save();
+    render();
+}
+
+function makeDraggable(el, widget){
+
+    let offsetX=0;
+    let offsetY=0;
+    let dragging=false;
+
+    const handle =
+        el.querySelector(".widget-header");
+
+    handle.onmousedown=(e)=>{
+
+        dragging=true;
+
+        offsetX=e.clientX-widget.x;
+        offsetY=e.clientY-widget.y;
+
+        el.classList.add("dragging");
+    };
+
+    document.onmousemove=(e)=>{
+
+        if(!dragging)
+            return;
+
+        widget.x=e.clientX-offsetX;
+        widget.y=e.clientY-offsetY;
+
+        el.style.left=widget.x+"px";
+        el.style.top=widget.y+"px";
+    };
+
+    document.onmouseup=()=>{
+
+        if(dragging){
+
+            dragging=false;
+
+            el.classList.remove("dragging");
+
+            save();
+        }
+    };
+}
+
+function applyTheme(){
+
+    const primary =
+        document.getElementById("primaryColor").value;
+
+    const background =
+        document.getElementById("backgroundColor").value;
+
+    data.theme.primary=primary;
+    data.theme.background=background;
+
+    document.documentElement.style
+        .setProperty("--primary",primary);
+
+    document.documentElement.style
+        .setProperty("--background",background);
+
+    save();
+}
+
+document.getElementById("primaryColor")
+    .value=data.theme.primary;
+
+document.getElementById("backgroundColor")
+    .value=data.theme.background;
+
+document.documentElement.style
+.setProperty("--primary",data.theme.primary);
+
+document.documentElement.style
+.setProperty("--background",data.theme.background);
+
+setInterval(render,1000);
+
+setInterval(()=>{
+    nextScreen();
+},15000);
+
+render();
+
+</script>
+
+</body>
+</html>
