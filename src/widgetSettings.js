@@ -1,8 +1,17 @@
 import { uploadImage } from "./storage.js";
 
+const TYPE_NAMES = {
+  clock: "Часы",
+  date: "Дата",
+  text: "Текст",
+  image: "Картинка",
+};
+
 /**
  * @param {object} options
- * @param {HTMLElement} options.panel
+ * @param {HTMLElement} options.modal
+ * @param {HTMLElement} options.title
+ * @param {HTMLButtonElement} options.closeBtn
  * @param {HTMLElement} options.textSettings
  * @param {HTMLElement} options.imageSettings
  * @param {HTMLInputElement} options.fontSizeInput
@@ -14,9 +23,12 @@ import { uploadImage } from "./storage.js";
  * @param {HTMLInputElement} options.fileInput
  * @param {() => import("./data/defaults.js").Widget | null} options.getSelectedWidget
  * @param {() => void} options.onChange
+ * @param {() => void} options.onClose
  */
 export function initWidgetSettings({
-  panel,
+  modal,
+  title,
+  closeBtn,
   textSettings,
   imageSettings,
   fontSizeInput,
@@ -28,16 +40,18 @@ export function initWidgetSettings({
   fileInput,
   getSelectedWidget,
   onChange,
+  onClose,
 }) {
   function syncForm() {
     const widget = getSelectedWidget();
 
     if (!widget) {
-      panel.hidden = true;
+      modal.hidden = true;
       return;
     }
 
-    panel.hidden = false;
+    modal.hidden = false;
+    title.textContent = `Настройки: ${TYPE_NAMES[widget.type] || widget.type}`;
 
     const isTextType = widget.type === "clock" || widget.type === "date" || widget.type === "text";
     textSettings.hidden = !isTextType;
@@ -58,6 +72,14 @@ export function initWidgetSettings({
       urlInput.value = widget.url || "";
     }
   }
+
+  closeBtn.addEventListener("click", onClose);
+
+  modal.addEventListener("mousedown", (e) => {
+    if (e.target === modal) {
+      onClose();
+    }
+  });
 
   fontSizeInput.addEventListener("input", () => {
     const widget = getSelectedWidget();

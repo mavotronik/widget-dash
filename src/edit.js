@@ -16,7 +16,9 @@ async function main() {
   });
 
   settings = initWidgetSettings({
-    panel: document.getElementById("widgetSettingsPanel"),
+    modal: document.getElementById("widgetSettingsModal"),
+    title: document.getElementById("widgetSettingsTitle"),
+    closeBtn: document.getElementById("widgetSettingsClose"),
     textSettings: document.getElementById("textSettings"),
     imageSettings: document.getElementById("imageSettings"),
     fontSizeInput: document.getElementById("widgetFontSize"),
@@ -31,6 +33,7 @@ async function main() {
       dashboardApi.render();
       dashboardApi.save();
     },
+    onClose: () => dashboardApi.selectWidget(null),
   });
 
   document.getElementById("addScreenBtn").addEventListener("click", dashboardApi.addScreen);
