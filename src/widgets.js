@@ -39,6 +39,9 @@ const RESIZE_HANDLES = `
 export function createWidgetElement(widget, settingsMode, selectedId = null) {
   const div = document.createElement("div");
   div.className = "widget";
+  if (widget.type === "image") {
+    div.classList.add("widget--image");
+  }
   if (settingsMode && selectedId === widget.id) {
     div.classList.add("selected");
   }
