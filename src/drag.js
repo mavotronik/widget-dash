@@ -1,7 +1,13 @@
+import { isResizing } from "./resize.js";
+
 let activeDrags = 0;
 
 export function isDragging() {
   return activeDrags > 0;
+}
+
+export function isInteracting() {
+  return activeDrags > 0 || isResizing();
 }
 
 /** @param {HTMLElement} el @param {import("./data/defaults.js").Widget} widget @param {() => void} onSave */
@@ -35,6 +41,7 @@ export function makeDraggable(el, widget, onSave) {
   };
 
   handle.addEventListener("mousedown", (e) => {
+    e.stopPropagation();
     dragging = true;
     activeDrags += 1;
     offsetX = e.clientX - widget.x;

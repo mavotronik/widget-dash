@@ -1,6 +1,7 @@
 import { loadData, saveData } from "./storage.js";
 import { createWidgetElement, renderWidgetContent } from "./widgets.js";
-import { isDragging, makeDraggable } from "./drag.js";
+import { isInteracting, makeDraggable } from "./drag.js";
+import { makeResizable } from "./resize.js";
 
 /**
  * @param {object} options
@@ -10,16 +11,20 @@ import { isDragging, makeDraggable } from "./drag.js";
  * @param {HTMLElement} [options.screenList]
  * @param {HTMLInputElement} [options.primaryColorInput]
  * @param {HTMLInputElement} [options.backgroundColorInput]
+ * @param {() => void} [options.onSelectionChange]
  */
-export function initDashboard({
+export async function initDashboard({
   settingsMode,
   dashboard,
   screenTitle,
   screenList,
   primaryColorInput,
   backgroundColorInput,
+  onSelectionChange,
 }) {
-  const data = loadData();
+  const data = await loadData();
+  /** @type {number | null} */
+  let selectedWidgetId = null;
 
   function save() {
     saveData(data);
@@ -40,9 +45,14 @@ export function initDashboard({
     data.screens.forEach((screen, index) => {
       const btn = document.createElement("button");
       btn.className = "btn";
+      if (index === data.currentScreen) {
+        btn.classList.add("active-screen");
+      }
       btn.textContent = screen.name;
       btn.onclick = () => {
         data.currentScreen = index;
+        selectedWidgetId = null;
+        onSelectionChange?.();
         render();
         save();
       };
@@ -63,8 +73,26 @@ export function initDashboard({
     });
   }
 
+  /** @returns {import("./data/defaults.js").Widget | null} */
+  function getSelectedWidget() {
+    if (selectedWidgetId === null) return null;
+    const screen = data.screens[data.currentScreen];
+    return screen.widgets.find((w) => w.id === selectedWidgetId) ?? null;
+  }
+
+  /** @param {number | null} id */
+  function selectWidget(id) {
+    if (selectedWidgetId === id) {
+      if (id !== null) onSelectionChange?.();
+      return;
+    }
+    selectedWidgetId = id;
+    onSelectionChange?.();
+    render();
+  }
+
   function render() {
-    if (settingsMode && isDragging()) return;
+    if (settingsMode && isInteracting()) return;
 
     dashboard.innerHTML = "";
 
@@ -72,11 +100,18 @@ export function initDashboard({
     screenTitle.textContent = screen.name;
 
     screen.widgets.forEach((widget) => {
-      const el = createWidgetElement(widget, settingsMode);
+      const el = createWidgetElement(widget, settingsMode, selectedWidgetId);
       dashboard.appendChild(el);
 
       if (settingsMode) {
         makeDraggable(el, widget, save);
+        makeResizable(el, widget, save);
+
+        el.addEventListener("mousedown", (e) => {
+          if (e.target instanceof Element && e.target.closest(".resize-handle")) return;
+          e.stopPropagation();
+          selectWidget(widget.id);
+        });
       }
     });
 
@@ -85,6 +120,8 @@ export function initDashboard({
 
   function nextScreen() {
     data.currentScreen = (data.currentScreen + 1) % data.screens.length;
+    selectedWidgetId = null;
+    onSelectionChange?.();
     render();
   }
 
@@ -116,11 +153,13 @@ export function initDashboard({
     }
 
     if (type === "image") {
-      widget.url = `https://picsum.photos/600/400?random=${Math.random()}`;
+      widget.url = "";
       widget.h = 250;
     }
 
     screen.widgets.push(widget);
+    selectedWidgetId = widget.id;
+    onSelectionChange?.();
     save();
     render();
   }
@@ -134,8 +173,26 @@ export function initDashboard({
     save();
   }
 
+  if (settingsMode) {
+    dashboard.addEventListener("mousedown", () => {
+      if (selectedWidgetId !== null) {
+        selectWidget(null);
+      }
+    });
+  }
+
   applyThemeToDom();
   render();
 
-  return { render, updateLiveContent, nextScreen, addScreen, addWidget, applyTheme };
+  return {
+    render,
+    updateLiveContent,
+    nextScreen,
+    addScreen,
+    addWidget,
+    applyTheme,
+    getSelectedWidget,
+    selectWidget,
+    save,
+  };
 }

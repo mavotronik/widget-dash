@@ -1,4 +1,4 @@
-/** @typedef {{ id: number, type: string, x: number, y: number, w: number, h: number, text?: string, url?: string }} Widget */
+/** @typedef {{ id: number, type: string, x: number, y: number, w: number, h: number, text?: string, url?: string, fontSize?: number, fontFamily?: string, color?: string }} Widget */
 /** @typedef {{ name: string, widgets: Widget[] }} Screen */
 /** @typedef {{ theme: { primary: string, background: string }, currentScreen: number, screens: Screen[] }} DashboardData */
 
@@ -27,7 +27,7 @@ export const defaultData = {
         {
           id: 4,
           type: "image",
-          url: "https://picsum.photos/800/600",
+          url: "/images/placeholder.svg",
           x: 620,
           y: 20,
           w: 500,
