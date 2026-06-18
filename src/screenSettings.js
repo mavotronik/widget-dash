@@ -1,3 +1,5 @@
+import { showConfirm } from "./confirmModal.js";
+
 /**
  * @param {object} options
  * @param {HTMLElement} options.modal
@@ -136,10 +138,19 @@ export function initScreenSettings({
     }
   });
 
-  deleteBtn.addEventListener("click", () => {
+  deleteBtn.addEventListener("click", async () => {
     if (editingIndex === null) return;
     if (getScreenCount() <= 1) return;
-    if (!confirm("Удалить этот экран?")) return;
+
+    const confirmed = await showConfirm({
+      title: "Удалить экран?",
+      message: "Экран и все его виджеты будут удалены без возможности восстановления.",
+      confirmText: "Удалить",
+      cancelText: "Отмена",
+      danger: true,
+    });
+
+    if (!confirmed) return;
 
     const index = editingIndex;
     close();

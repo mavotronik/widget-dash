@@ -1,3 +1,5 @@
+@import "@mdi/font/css/materialdesignicons.min.css";
+
 :root {
   --primary: #2196f3;
   --background: #111827;
@@ -50,8 +52,43 @@ body {
   margin-top: 10px;
 }
 
+.btn-danger.btn-with-icon {
+  justify-content: center;
+}
+
 .btn-danger:hover {
   background: #b91c1c;
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.btn-with-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.btn-icon-only {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+}
+
+.btn-icon-only .btn-icon {
+  font-size: 20px;
 }
 
 .main {
@@ -210,6 +247,17 @@ body {
   background: rgba(255, 255, 255, 0.08);
   cursor: move;
   font-size: 12px;
+}
+
+.widget-header--with-icon {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.widget-header-icon {
+  font-size: 16px;
+  opacity: 0.85;
 }
 
 .widget-content {
@@ -389,8 +437,11 @@ select {
   font-size: 24px;
   line-height: 1;
   cursor: pointer;
-  padding: 0 4px;
+  padding: 4px;
   opacity: 0.7;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .modal-close:hover {
@@ -405,4 +456,33 @@ select {
   display: block;
   margin-bottom: 4px;
   font-size: 14px;
+}
+
+.modal-dialog--confirm {
+  max-width: 400px;
+}
+
+.confirm-message {
+  margin: 0 0 20px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.confirm-actions .btn {
+  margin-bottom: 0;
+}
+
+.confirm-actions .btn-danger {
+  width: auto;
+  margin-top: 0;
+}
+
+.btn-primary-inline {
+  background: var(--primary);
 }

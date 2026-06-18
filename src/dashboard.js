@@ -4,6 +4,7 @@ import { isInteracting, makeDraggable } from "./drag.js";
 import { makeResizable } from "./resize.js";
 import { defaultTransition } from "./data/defaults.js";
 import { playTransition, createScreenLayer } from "./screenTransitions.js";
+import { icon } from "./icons.js";
 
 /**
  * @param {object} options
@@ -102,9 +103,9 @@ export async function initDashboard({
 
       const settingsBtn = document.createElement("button");
       settingsBtn.type = "button";
-      settingsBtn.className = "btn btn-screen-settings";
-      settingsBtn.textContent = "⚙";
+      settingsBtn.className = "btn btn-screen-settings btn-icon-only";
       settingsBtn.title = "Настройки экрана";
+      settingsBtn.appendChild(icon("cog", "btn-icon"));
       settingsBtn.onclick = (e) => {
         e.stopPropagation();
         onOpenScreenSettings?.(index);

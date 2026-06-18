@@ -35,6 +35,20 @@ const RESIZE_HANDLES = `
   <div class="resize-handle resize-se" data-corner="se"></div>
 `;
 
+const WIDGET_ICONS = {
+  clock: "clock-outline",
+  date: "calendar",
+  text: "format-text",
+  image: "image",
+};
+
+const WIDGET_LABELS = {
+  clock: "Часы",
+  date: "Дата",
+  text: "Текст",
+  image: "Картинка",
+};
+
 /** @param {import("./data/defaults.js").Widget} widget @param {boolean} settingsMode @param {number | null} [selectedId] */
 export function createWidgetElement(widget, settingsMode, selectedId = null) {
   const div = document.createElement("div");
@@ -52,7 +66,10 @@ export function createWidgetElement(widget, settingsMode, selectedId = null) {
   div.style.height = `${widget.h}px`;
 
   const header = settingsMode
-    ? `<div class="widget-header">${widget.type}</div>`
+    ? `<div class="widget-header widget-header--with-icon">
+        <span class="mdi mdi-${WIDGET_ICONS[widget.type] || "widgets"} widget-header-icon" aria-hidden="true"></span>
+        <span>${WIDGET_LABELS[widget.type] || widget.type}</span>
+      </div>`
     : "";
 
   const handles = settingsMode ? RESIZE_HANDLES : "";

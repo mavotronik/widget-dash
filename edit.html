@@ -10,11 +10,17 @@
 
 <div class="topbar">
   <div>
-    <a class="btn" href="/">← Дашборд</a>
+    <a class="btn btn-with-icon" href="/">
+      <span class="mdi mdi-arrow-left btn-icon" aria-hidden="true"></span>
+      <span>Дашборд</span>
+    </a>
   </div>
   <div id="screenTitle">Dashboard</div>
   <div>
-    <button class="btn" id="nextScreenBtn" hidden>Следующий экран</button>
+    <button class="btn btn-with-icon" id="nextScreenBtn" hidden>
+      <span class="mdi mdi-skip-next btn-icon" aria-hidden="true"></span>
+      <span>Следующий экран</span>
+    </button>
   </div>
 </div>
 
@@ -25,21 +31,39 @@
     <input type="color" id="primaryColor">
     <label for="backgroundColor">Фон</label>
     <input type="color" id="backgroundColor">
-    <button class="btn" id="applyThemeBtn">Применить</button>
+    <button class="btn btn-with-icon" id="applyThemeBtn">
+      <span class="mdi mdi-check btn-icon" aria-hidden="true"></span>
+      <span>Применить</span>
+    </button>
 
     <hr class="divider">
 
     <h3>Экраны</h3>
     <div class="screen-list" id="screenList"></div>
-    <button class="btn" id="addScreenBtn">+ Экран</button>
+    <button class="btn btn-with-icon" id="addScreenBtn">
+      <span class="mdi mdi-plus btn-icon" aria-hidden="true"></span>
+      <span>Экран</span>
+    </button>
 
     <hr class="divider">
 
     <h3>Виджеты</h3>
-    <button class="btn" data-widget="clock">Часы</button>
-    <button class="btn" data-widget="date">Дата</button>
-    <button class="btn" data-widget="text">Текст</button>
-    <button class="btn" data-widget="image">Картинка</button>
+    <button class="btn btn-with-icon" data-widget="clock">
+      <span class="mdi mdi-clock-outline btn-icon" aria-hidden="true"></span>
+      <span>Часы</span>
+    </button>
+    <button class="btn btn-with-icon" data-widget="date">
+      <span class="mdi mdi-calendar btn-icon" aria-hidden="true"></span>
+      <span>Дата</span>
+    </button>
+    <button class="btn btn-with-icon" data-widget="text">
+      <span class="mdi mdi-format-text btn-icon" aria-hidden="true"></span>
+      <span>Текст</span>
+    </button>
+    <button class="btn btn-with-icon" data-widget="image">
+      <span class="mdi mdi-image btn-icon" aria-hidden="true"></span>
+      <span>Картинка</span>
+    </button>
   </aside>
 
   <div class="dashboard" id="dashboard"></div>
@@ -49,7 +73,9 @@
   <div class="modal-dialog">
     <div class="modal-header">
       <h3 id="screenSettingsTitle">Настройки экрана</h3>
-      <button type="button" class="modal-close" id="screenSettingsClose" aria-label="Закрыть">&times;</button>
+      <button type="button" class="modal-close" id="screenSettingsClose" aria-label="Закрыть">
+        <span class="mdi mdi-close" aria-hidden="true"></span>
+      </button>
     </div>
     <div class="modal-body">
       <label for="screenName">Название</label>
@@ -78,7 +104,10 @@
       <label for="screenAnimationDuration">Длительность анимации (мс)</label>
       <input type="number" id="screenAnimationDuration" min="0" max="3000" step="50">
 
-      <button type="button" class="btn btn-danger" id="screenDeleteBtn">Удалить экран</button>
+      <button type="button" class="btn btn-danger btn-with-icon" id="screenDeleteBtn">
+        <span class="mdi mdi-delete btn-icon" aria-hidden="true"></span>
+        <span>Удалить экран</span>
+      </button>
     </div>
   </div>
 </div>
@@ -87,7 +116,9 @@
   <div class="modal-dialog">
     <div class="modal-header">
       <h3 id="widgetSettingsTitle">Настройки виджета</h3>
-      <button type="button" class="modal-close" id="widgetSettingsClose" aria-label="Закрыть">&times;</button>
+      <button type="button" class="modal-close" id="widgetSettingsClose" aria-label="Закрыть">
+        <span class="mdi mdi-close" aria-hidden="true"></span>
+      </button>
     </div>
     <div class="modal-body">
       <div id="textSettings">
@@ -121,7 +152,10 @@
         <input type="file" id="widgetFile" accept="image/*">
       </div>
 
-      <button type="button" class="btn btn-danger" id="widgetDeleteBtn">Удалить виджет</button>
+      <button type="button" class="btn btn-danger btn-with-icon" id="widgetDeleteBtn">
+        <span class="mdi mdi-delete btn-icon" aria-hidden="true"></span>
+        <span>Удалить виджет</span>
+      </button>
     </div>
   </div>
 </div>

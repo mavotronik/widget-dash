@@ -1,4 +1,5 @@
 import { uploadImage } from "./storage.js";
+import { showConfirm } from "./confirmModal.js";
 
 const TYPE_NAMES = {
   clock: "Часы",
@@ -79,8 +80,18 @@ export function initWidgetSettings({
 
   closeBtn.addEventListener("click", onClose);
 
-  deleteBtn.addEventListener("click", () => {
+  deleteBtn.addEventListener("click", async () => {
     if (!getSelectedWidget()) return;
+
+    const confirmed = await showConfirm({
+      title: "Удалить виджет?",
+      message: "Виджет будет удалён без возможности восстановления.",
+      confirmText: "Удалить",
+      cancelText: "Отмена",
+      danger: true,
+    });
+
+    if (!confirmed) return;
     onDelete();
   });
 
