@@ -7,7 +7,21 @@ const TYPE_NAMES = {
   date: "Дата",
   text: "Текст",
   image: "Картинка",
+  numeric: "Число",
+  button: "Кнопка",
+  switch: "Переключатель",
+  ping: "Ping",
 };
+
+/**
+ * @param {string} value
+ * @returns {number | undefined}
+ */
+function parseOptionalNumber(value) {
+  if (!value.trim()) return undefined;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : undefined;
+}
 
 /**
  * @param {object} options
@@ -16,6 +30,10 @@ const TYPE_NAMES = {
  * @param {HTMLButtonElement} options.closeBtn
  * @param {HTMLElement} options.textSettings
  * @param {HTMLElement} options.imageSettings
+ * @param {HTMLElement} options.numericSettings
+ * @param {HTMLElement} options.buttonSettings
+ * @param {HTMLElement} options.switchSettings
+ * @param {HTMLElement} options.pingSettings
  * @param {HTMLInputElement} options.fontSizeInput
  * @param {HTMLSelectElement} options.fontFamilySelect
  * @param {HTMLInputElement} options.colorInput
@@ -23,6 +41,17 @@ const TYPE_NAMES = {
  * @param {HTMLInputElement} options.textInput
  * @param {HTMLInputElement} options.urlInput
  * @param {HTMLInputElement} options.fileInput
+ * @param {HTMLInputElement} options.numericValueInput
+ * @param {HTMLInputElement} options.numericMinInput
+ * @param {HTMLInputElement} options.numericMaxInput
+ * @param {HTMLInputElement} options.numericStepInput
+ * @param {HTMLInputElement} options.buttonLabelInput
+ * @param {HTMLTextAreaElement} options.switchPositionsInput
+ * @param {HTMLInputElement} options.switchSelectedInput
+ * @param {HTMLSelectElement} options.switchEmitModeSelect
+ * @param {HTMLInputElement} options.pingHostInput
+ * @param {HTMLInputElement} options.pingAttemptsInput
+ * @param {HTMLInputElement} options.pingIntervalInput
  * @param {HTMLButtonElement} options.deleteBtn
  * @param {() => import("./data/defaults.js").Widget | null} options.getSelectedWidget
  * @param {() => void} options.onChange
@@ -37,6 +66,10 @@ export function initWidgetSettings({
   closeBtn,
   textSettings,
   imageSettings,
+  numericSettings,
+  buttonSettings,
+  switchSettings,
+  pingSettings,
   fontSizeInput,
   fontFamilySelect,
   colorInput,
@@ -44,6 +77,17 @@ export function initWidgetSettings({
   textInput,
   urlInput,
   fileInput,
+  numericValueInput,
+  numericMinInput,
+  numericMaxInput,
+  numericStepInput,
+  buttonLabelInput,
+  switchPositionsInput,
+  switchSelectedInput,
+  switchEmitModeSelect,
+  pingHostInput,
+  pingAttemptsInput,
+  pingIntervalInput,
   deleteBtn,
   getSelectedWidget,
   onChange,
@@ -65,6 +109,10 @@ export function initWidgetSettings({
     const isTextType = widget.type === "clock" || widget.type === "date" || widget.type === "text";
     textSettings.hidden = !isTextType;
     imageSettings.hidden = widget.type !== "image";
+    numericSettings.hidden = widget.type !== "numeric";
+    buttonSettings.hidden = widget.type !== "button";
+    switchSettings.hidden = widget.type !== "switch";
+    pingSettings.hidden = widget.type !== "ping";
 
     fontSizeInput.value = widget.fontSize ? String(widget.fontSize) : "";
     fontFamilySelect.value = widget.fontFamily || "";
@@ -79,6 +127,32 @@ export function initWidgetSettings({
 
     if (widget.type === "image") {
       urlInput.value = widget.url || "";
+    }
+
+    if (widget.type === "numeric") {
+      numericValueInput.value = String(widget.value ?? 0);
+      numericMinInput.value = String(widget.min ?? 0);
+      numericMaxInput.value = String(widget.max ?? 100);
+      numericStepInput.value = String(widget.step ?? 1);
+    }
+
+    if (widget.type === "button") {
+      buttonLabelInput.value = widget.label || "Кнопка";
+    }
+
+    if (widget.type === "switch") {
+      const positions = Array.isArray(widget.positions) ? widget.positions : [];
+      switchPositionsInput.value = positions.map((item) => item.name).join("\n");
+      switchSelectedInput.min = "1";
+      switchSelectedInput.max = String(Math.max(positions.length, 1));
+      switchSelectedInput.value = String((widget.selectedIndex ?? 0) + 1);
+      switchEmitModeSelect.value = widget.emitMode === "index" ? "index" : "name";
+    }
+
+    if (widget.type === "ping") {
+      pingHostInput.value = widget.host ?? "";
+      pingAttemptsInput.value = String(widget.attempts ?? 2);
+      pingIntervalInput.value = String(widget.intervalMs ?? 5000);
     }
   }
 
@@ -146,6 +220,87 @@ export function initWidgetSettings({
     widget.url = urlInput.value.trim();
     onChange();
   });
+
+  function updateNumericWidget() {
+    const widget = getSelectedWidget();
+    if (!widget || widget.type !== "numeric") return;
+
+    const min = parseOptionalNumber(numericMinInput.value);
+    const max = parseOptionalNumber(numericMaxInput.value);
+    const step = parseOptionalNumber(numericStepInput.value);
+    const value = parseOptionalNumber(numericValueInput.value);
+
+    widget.min = min ?? 0;
+    widget.max = max ?? 100;
+    if (widget.max < widget.min) {
+      [widget.min, widget.max] = [widget.max, widget.min];
+    }
+    widget.step = step && step > 0 ? step : 1;
+    const fallbackValue = widget.value ?? widget.min;
+    const nextValue = value ?? fallbackValue;
+    widget.value = Math.min(widget.max, Math.max(widget.min, nextValue));
+
+    onChange();
+  }
+
+  numericValueInput.addEventListener("input", updateNumericWidget);
+  numericMinInput.addEventListener("input", updateNumericWidget);
+  numericMaxInput.addEventListener("input", updateNumericWidget);
+  numericStepInput.addEventListener("input", updateNumericWidget);
+
+  buttonLabelInput.addEventListener("input", () => {
+    const widget = getSelectedWidget();
+    if (!widget || widget.type !== "button") return;
+    const next = buttonLabelInput.value.trim();
+    widget.label = next || "Кнопка";
+    onChange();
+  });
+
+  function updateSwitchWidget() {
+    const widget = getSelectedWidget();
+    if (!widget || widget.type !== "switch") return;
+
+    const positions = switchPositionsInput.value
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((name) => ({ name }));
+    widget.positions = positions.length >= 2 ? positions : [{ name: "1" }, { name: "2" }];
+
+    const selectedOneBased = Number(switchSelectedInput.value);
+    const selectedIndex = Number.isFinite(selectedOneBased)
+      ? Math.max(0, Math.min(widget.positions.length - 1, Math.floor(selectedOneBased) - 1))
+      : 0;
+    widget.selectedIndex = selectedIndex;
+    widget.emitMode = switchEmitModeSelect.value === "index" ? "index" : "name";
+
+    switchSelectedInput.max = String(widget.positions.length);
+    switchSelectedInput.value = String(selectedIndex + 1);
+    onChange();
+  }
+
+  switchPositionsInput.addEventListener("input", updateSwitchWidget);
+  switchSelectedInput.addEventListener("input", updateSwitchWidget);
+  switchEmitModeSelect.addEventListener("change", updateSwitchWidget);
+
+  function updatePingWidget() {
+    const widget = getSelectedWidget();
+    if (!widget || widget.type !== "ping") return;
+
+    widget.host = pingHostInput.value.trim();
+    const attempts = Number(pingAttemptsInput.value);
+    const intervalMs = Number(pingIntervalInput.value);
+    widget.attempts = Number.isFinite(attempts) ? Math.min(10, Math.max(1, Math.floor(attempts))) : 2;
+    widget.intervalMs = Number.isFinite(intervalMs)
+      ? Math.min(60000, Math.max(500, Math.floor(intervalMs)))
+      : 5000;
+    widget.status = "unknown";
+    onChange();
+  }
+
+  pingHostInput.addEventListener("input", updatePingWidget);
+  pingAttemptsInput.addEventListener("input", updatePingWidget);
+  pingIntervalInput.addEventListener("input", updatePingWidget);
 
   fileInput.addEventListener("change", async () => {
     const file = fileInput.files?.[0];

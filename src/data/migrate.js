@@ -1,5 +1,88 @@
 import { defaultData, defaultTransition } from "./defaults.js";
 
+/**
+ * @param {unknown} value
+ * @param {number} fallback
+ * @param {number} min
+ * @param {number} [max]
+ */
+function normalizeNumber(value, fallback, min, max = Number.POSITIVE_INFINITY) {
+  if (typeof value !== "number" || Number.isNaN(value)) return fallback;
+  return Math.min(max, Math.max(min, value));
+}
+
+/** @param {unknown} widget @returns {import("./defaults.js").Widget | null} */
+function normalizeWidget(widget) {
+  if (!widget || typeof widget !== "object") return null;
+
+  const w = /** @type {Record<string, unknown>} */ (widget);
+  const id = typeof w.id === "number" ? w.id : Date.now();
+  const type = typeof w.type === "string" && w.type ? w.type : "text";
+
+  /** @type {import("./defaults.js").Widget} */
+  const normalized = {
+    id,
+    type,
+    x: normalizeNumber(w.x, 50, 0),
+    y: normalizeNumber(w.y, 50, 0),
+    w: normalizeNumber(w.w, 250, 20),
+    h: normalizeNumber(w.h, 120, 20),
+  };
+
+  if (typeof w.fontSize === "number" && w.fontSize > 0) normalized.fontSize = w.fontSize;
+  if (typeof w.fontFamily === "string" && w.fontFamily.trim()) normalized.fontFamily = w.fontFamily;
+  if (typeof w.color === "string" && w.color.trim()) normalized.color = w.color;
+
+  if (type === "text") {
+    normalized.text = typeof w.text === "string" ? w.text : "Новый текст";
+  } else if (type === "image") {
+    normalized.url = typeof w.url === "string" ? w.url.trim() : "";
+  } else if (type === "numeric") {
+    const min = normalizeNumber(w.min, 0, -1_000_000_000, 1_000_000_000);
+    const max = normalizeNumber(w.max, 100, -1_000_000_000, 1_000_000_000);
+    const safeMin = Math.min(min, max);
+    const safeMax = Math.max(min, max);
+    normalized.min = safeMin;
+    normalized.max = safeMax;
+    normalized.step = normalizeNumber(w.step, 1, 0.000001, 1_000_000_000);
+    normalized.value = normalizeNumber(w.value, 0, safeMin, safeMax);
+  } else if (type === "button") {
+    normalized.label = typeof w.label === "string" && w.label.trim() ? w.label : "Кнопка";
+  } else if (type === "switch") {
+    const positionsSource = Array.isArray(w.positions) ? w.positions : [];
+    const positions = positionsSource
+      .map((p) => {
+        if (!p || typeof p !== "object") return null;
+        const name = /** @type {{name?: unknown}} */ (p).name;
+        if (typeof name !== "string" || !name.trim()) return null;
+        return { name: name.trim() };
+      })
+      .filter(Boolean);
+
+    normalized.positions =
+      positions.length > 0
+        ? /** @type {{name: string}[]} */ (positions)
+        : [{ name: "1" }, { name: "2" }];
+    normalized.selectedIndex = normalizeNumber(
+      w.selectedIndex,
+      0,
+      0,
+      normalized.positions.length - 1
+    );
+    normalized.emitMode = w.emitMode === "index" ? "index" : "name";
+  } else if (type === "ping") {
+    normalized.host = typeof w.host === "string" ? w.host.trim() : "";
+    normalized.attempts = normalizeNumber(w.attempts, 2, 1, 10);
+    normalized.intervalMs = normalizeNumber(w.intervalMs, 5000, 500, 60000);
+    normalized.status =
+      w.status === "ok" || w.status === "fail" || w.status === "unknown"
+        ? w.status
+        : "unknown";
+  }
+
+  return normalized;
+}
+
 /** @param {import("./defaults.js").ScreenTransition} transition */
 function normalizeTransition(transition) {
   const base = defaultTransition();
@@ -52,7 +135,9 @@ export function normalizeDashboard(data) {
 
   data.screens = data.screens.map((screen) => ({
     name: typeof screen?.name === "string" ? screen.name : "Экран",
-    widgets: Array.isArray(screen?.widgets) ? screen.widgets : [],
+    widgets: Array.isArray(screen?.widgets)
+      ? screen.widgets.map((widget) => normalizeWidget(widget)).filter(Boolean)
+      : [],
     transition: normalizeTransition(screen?.transition),
   }));
 

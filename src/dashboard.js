@@ -11,6 +11,7 @@ import {
   hasWidgetsOutOfBounds,
 } from "./scale.js";
 import { icon } from "./icons.js";
+import { createPingPoller } from "./ping.js";
 
 /**
  * @param {object} options
@@ -63,6 +64,15 @@ export async function initDashboard({
   let isTransitioning = false;
   /** @type {(() => void) | null} */
   let onNavigateComplete = null;
+  const pingPoller = createPingPoller({
+    enabled: !settingsMode,
+    onStatus: (widgetId, status) => {
+      const widget = getCurrentScreen().widgets.find((item) => item.id === widgetId);
+      if (!widget || widget.type !== "ping") return;
+      widget.status = status;
+      refreshWidgetContent(widget);
+    },
+  });
 
   /** @type {HTMLElement | null} */
   let canvasViewport = null;
@@ -168,6 +178,16 @@ export async function initDashboard({
     return data.screens[data.currentScreen];
   }
 
+  /** @param {import("./data/defaults.js").Widget} widget */
+  function refreshWidgetContent(widget) {
+    const layer = canvasScaler?.querySelector(".screen-layer");
+    if (!layer) return;
+    const content = layer.querySelector(`[data-widget-id="${widget.id}"] .widget-content`);
+    if (content) {
+      content.innerHTML = renderWidgetContent(widget);
+    }
+  }
+
   function getCurrentScreenIndex() {
     return data.currentScreen;
   }
@@ -212,6 +232,48 @@ export async function initDashboard({
           selectWidget(widget.id);
           onOpenWidgetSettings?.();
         });
+      } else {
+        if (widget.type === "button") {
+          const button = el.querySelector('[data-role="widget-button"]');
+          if (button) {
+            let pressed = false;
+            const release = () => {
+              if (!pressed) return;
+              pressed = false;
+              button.classList.remove("is-pressed");
+              console.info("button event", { widgetId: widget.id, event: "released" });
+            };
+            button.addEventListener("pointerdown", () => {
+              pressed = true;
+              button.classList.add("is-pressed");
+              console.info("button event", { widgetId: widget.id, event: "pressed" });
+            });
+            button.addEventListener("pointerup", release);
+            button.addEventListener("pointercancel", release);
+            button.addEventListener("pointerleave", release);
+          }
+        }
+
+        if (widget.type === "switch") {
+          el.addEventListener("click", (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLElement)) return;
+            const option = target.closest('[data-role="switch-option"]');
+            if (!option) return;
+            const nextIndex = Number(option.dataset.switchIndex);
+            const positions = Array.isArray(widget.positions) ? widget.positions : [];
+            if (!Number.isFinite(nextIndex) || nextIndex < 0 || nextIndex >= positions.length) {
+              return;
+            }
+            widget.selectedIndex = nextIndex;
+            refreshWidgetContent(widget);
+            const value =
+              widget.emitMode === "index"
+                ? nextIndex + 1
+                : positions[nextIndex]?.name ?? String(nextIndex + 1);
+            console.info("switch event", { widgetId: widget.id, value });
+          });
+        }
       }
     });
   }
@@ -336,9 +398,10 @@ export async function initDashboard({
     const layer = scaler.querySelector(".screen-layer");
     if (!layer) return;
 
-    screen.widgets.forEach((widget) => {
-      if (widget.type !== "clock" && widget.type !== "date") return;
+    pingPoller.tick(screen.widgets);
 
+    screen.widgets.forEach((widget) => {
+      if (widget.type !== "clock" && widget.type !== "date" && widget.type !== "ping") return;
       const el = layer.querySelector(`[data-widget-id="${widget.id}"] .widget-content`);
       if (el) {
         el.innerHTML = renderWidgetContent(widget);
@@ -558,6 +621,36 @@ export async function initDashboard({
     if (type === "image") {
       widget.url = "";
       widget.h = 250;
+    }
+
+    if (type === "numeric") {
+      widget.value = 0;
+      widget.min = 0;
+      widget.max = 100;
+      widget.step = 1;
+    }
+
+    if (type === "button") {
+      widget.label = "Кнопка";
+      widget.h = 90;
+      widget.w = 220;
+    }
+
+    if (type === "switch") {
+      widget.positions = [{ name: "1" }, { name: "2" }];
+      widget.selectedIndex = 0;
+      widget.emitMode = "name";
+      widget.h = 100;
+      widget.w = 300;
+    }
+
+    if (type === "ping") {
+      widget.host = "localhost";
+      widget.attempts = 2;
+      widget.intervalMs = 5000;
+      widget.status = "unknown";
+      widget.h = 90;
+      widget.w = 260;
     }
 
     clampWidgetBounds(widget, data.designWidth, data.designHeight);

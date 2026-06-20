@@ -203,3 +203,25 @@ export async function uploadImage(file) {
   }
   return res.json();
 }
+
+/**
+ * @param {object} payload
+ * @param {string} payload.host
+ * @param {number} payload.attempts
+ * @param {number} payload.intervalMs
+ * @returns {Promise<{ ok: boolean, success: boolean }>}
+ */
+export async function pingHost(payload) {
+  const res = await fetch("/api/ping", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || `Ping error (${res.status})`);
+  }
+
+  return res.json();
+}

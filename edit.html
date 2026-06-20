@@ -90,6 +90,22 @@
       <span class="mdi mdi-image btn-icon" aria-hidden="true"></span>
       <span>Картинка</span>
     </button>
+    <button class="btn btn-with-icon" type="button" data-widget="numeric">
+      <span class="mdi mdi-numeric btn-icon" aria-hidden="true"></span>
+      <span>Число</span>
+    </button>
+    <button class="btn btn-with-icon" type="button" data-widget="button">
+      <span class="mdi mdi-gesture-tap-button btn-icon" aria-hidden="true"></span>
+      <span>Кнопка</span>
+    </button>
+    <button class="btn btn-with-icon" type="button" data-widget="switch">
+      <span class="mdi mdi-toggle-switch btn-icon" aria-hidden="true"></span>
+      <span>Переключатель</span>
+    </button>
+    <button class="btn btn-with-icon" type="button" data-widget="ping">
+      <span class="mdi mdi-lan-check btn-icon" aria-hidden="true"></span>
+      <span>Ping</span>
+    </button>
   </aside>
 
   <div class="dashboard" id="dashboard"></div>
@@ -270,6 +286,50 @@
 
         <label for="widgetFile">Выбрать файл</label>
         <input type="file" id="widgetFile" accept="image/*">
+      </div>
+
+      <div id="numericSettings" hidden>
+        <label for="widgetNumericValue">Значение</label>
+        <input type="number" id="widgetNumericValue" step="any">
+
+        <label for="widgetNumericMin">Минимум</label>
+        <input type="number" id="widgetNumericMin" step="any">
+
+        <label for="widgetNumericMax">Максимум</label>
+        <input type="number" id="widgetNumericMax" step="any">
+
+        <label for="widgetNumericStep">Шаг</label>
+        <input type="number" id="widgetNumericStep" min="0.000001" step="any">
+      </div>
+
+      <div id="buttonSettings" hidden>
+        <label for="widgetButtonLabel">Текст кнопки</label>
+        <input type="text" id="widgetButtonLabel" placeholder="Кнопка">
+      </div>
+
+      <div id="switchSettings" hidden>
+        <label for="widgetSwitchPositions">Позиции (по одной на строку)</label>
+        <textarea id="widgetSwitchPositions" rows="4" placeholder="1&#10;2"></textarea>
+
+        <label for="widgetSwitchSelected">Активная позиция</label>
+        <input type="number" id="widgetSwitchSelected" min="1" step="1">
+
+        <label for="widgetSwitchEmitMode">Возвращаемое событие</label>
+        <select id="widgetSwitchEmitMode">
+          <option value="name">Имя позиции</option>
+          <option value="index">Номер позиции</option>
+        </select>
+      </div>
+
+      <div id="pingSettings" hidden>
+        <label for="widgetPingHost">Хост</label>
+        <input type="text" id="widgetPingHost" placeholder="example.com">
+
+        <label for="widgetPingAttempts">Количество попыток</label>
+        <input type="number" id="widgetPingAttempts" min="1" max="10" step="1">
+
+        <label for="widgetPingIntervalMs">Интервал между попытками (мс)</label>
+        <input type="number" id="widgetPingIntervalMs" min="500" max="60000" step="100">
       </div>
 
       <button type="button" class="btn btn-danger btn-with-icon" id="widgetDeleteBtn">

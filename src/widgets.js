@@ -7,6 +7,16 @@ function getTextStyleAttrs(widget) {
   return parts.length ? ` style="${parts.join(";")}"` : "";
 }
 
+/** @param {string} value */
+function escapeHtml(value) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 /** @param {import("./data/defaults.js").Widget} widget */
 export function renderWidgetContent(widget) {
   const style = getTextStyleAttrs(widget);
@@ -23,6 +33,43 @@ export function renderWidgetContent(widget) {
         return `<div class="image-placeholder">Укажите изображение</div>`;
       }
       return `<div class="image-widget"><img src="${widget.url}" alt=""></div>`;
+    case "numeric": {
+      const value = typeof widget.value === "number" ? widget.value : 0;
+      return `<div class="numeric-widget"${style}>${value}</div>`;
+    }
+    case "button": {
+      const label = escapeHtml(widget.label || "Кнопка");
+      return `<button type="button" class="widget-action-btn" data-role="widget-button">${label}</button>`;
+    }
+    case "switch": {
+      const positions =
+        Array.isArray(widget.positions) && widget.positions.length
+          ? widget.positions
+          : [{ name: "1" }, { name: "2" }];
+      const selectedIndex =
+        typeof widget.selectedIndex === "number" ? widget.selectedIndex : 0;
+      return `<div class="switch-widget">${positions
+        .map((position, index) => {
+          const active = index === selectedIndex ? " is-active" : "";
+          return `<button type="button" class="switch-option${active}" data-role="switch-option" data-switch-index="${index}">${escapeHtml(position.name)}</button>`;
+        })
+        .join("")}</div>`;
+    }
+    case "ping": {
+      const status =
+        widget.status === "ok" || widget.status === "fail" ? widget.status : "unknown";
+      const host = escapeHtml(widget.host || "host");
+      const statusIcon =
+        status === "ok"
+          ? "mdi-check-circle"
+          : status === "fail"
+            ? "mdi-close-circle"
+            : "mdi-help-circle-outline";
+      return `<div class="ping-widget ping-widget--${status}">
+        <span class="mdi ${statusIcon}" aria-hidden="true"></span>
+        <span class="ping-host">${host}</span>
+      </div>`;
+    }
     default:
       return "";
   }
@@ -40,6 +87,10 @@ const WIDGET_ICONS = {
   date: "calendar",
   text: "format-text",
   image: "image",
+  numeric: "numeric",
+  button: "gesture-tap-button",
+  switch: "toggle-switch",
+  ping: "lan-check",
 };
 
 const WIDGET_LABELS = {
@@ -47,6 +98,10 @@ const WIDGET_LABELS = {
   date: "Дата",
   text: "Текст",
   image: "Картинка",
+  numeric: "Число",
+  button: "Кнопка",
+  switch: "Переключатель",
+  ping: "Ping",
 };
 
 /** @param {import("./data/defaults.js").Widget} widget @param {boolean} settingsMode @param {number | null} [selectedId] */

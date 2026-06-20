@@ -1,4 +1,33 @@
-/** @typedef {{ id: number, type: string, x: number, y: number, w: number, h: number, text?: string, url?: string, fontSize?: number, fontFamily?: string, color?: string }} Widget */
+/**
+ * @typedef {{ name: string }} SwitchPosition
+ */
+/**
+ * @typedef {{
+ *   id: number,
+ *   type: string,
+ *   x: number,
+ *   y: number,
+ *   w: number,
+ *   h: number,
+ *   text?: string,
+ *   url?: string,
+ *   fontSize?: number,
+ *   fontFamily?: string,
+ *   color?: string,
+ *   value?: number,
+ *   min?: number,
+ *   max?: number,
+ *   step?: number,
+ *   label?: string,
+ *   positions?: SwitchPosition[],
+ *   selectedIndex?: number,
+ *   emitMode?: "name" | "index",
+ *   host?: string,
+ *   attempts?: number,
+ *   intervalMs?: number,
+ *   status?: "unknown" | "ok" | "fail"
+ * }} Widget
+ */
 /** @typedef {{ key: string, action: 'next' | 'goto', targetScreenIndex?: number }} EventTrigger */
 /** @typedef {{ advanceMode: 'timer' | 'button' | 'event', displayDuration: number, enterEffect: 'none' | 'fade' | 'slideUp' | 'slideDown' | 'overlay', animationDuration: number, eventTrigger?: EventTrigger }} ScreenTransition */
 /** @typedef {{ name: string, widgets: Widget[], transition: ScreenTransition }} Screen */
