@@ -7,8 +7,13 @@ export function isResizing() {
 const MIN_W = 80;
 const MIN_H = 60;
 
-/** @param {HTMLElement} el @param {import("./data/defaults.js").Widget} widget @param {() => void} onSave */
-export function makeResizable(el, widget, onSave) {
+/**
+ * @param {HTMLElement} el
+ * @param {import("./data/defaults.js").Widget} widget
+ * @param {() => void} onSave
+ * @param {() => { getScalerRect: () => DOMRect, getDesignBounds: () => { width: number, height: number } }} getInteractionContext
+ */
+export function makeResizable(el, widget, onSave, getInteractionContext) {
   const handles = el.querySelectorAll(".resize-handle");
   if (!handles.length) return;
 
@@ -20,8 +25,12 @@ export function makeResizable(el, widget, onSave) {
     let resizing = true;
     activeResizes += 1;
 
-    const startX = e.clientX;
-    const startY = e.clientY;
+    const { getScalerRect, getDesignBounds } = getInteractionContext();
+    const rect = getScalerRect();
+    const bounds = getDesignBounds();
+
+    const startX = ((e.clientX - rect.left) / rect.width) * bounds.width;
+    const startY = ((e.clientY - rect.top) / rect.height) * bounds.height;
     const startLeft = widget.x;
     const startTop = widget.y;
     const startW = widget.w;
@@ -32,8 +41,15 @@ export function makeResizable(el, widget, onSave) {
     const onMouseMove = (moveEvent) => {
       if (!resizing) return;
 
-      const dx = moveEvent.clientX - startX;
-      const dy = moveEvent.clientY - startY;
+      const currentRect = getScalerRect();
+      const currentBounds = getDesignBounds();
+      const currentX =
+        ((moveEvent.clientX - currentRect.left) / currentRect.width) * currentBounds.width;
+      const currentY =
+        ((moveEvent.clientY - currentRect.top) / currentRect.height) * currentBounds.height;
+
+      const dx = currentX - startX;
+      const dy = currentY - startY;
 
       let newX = startLeft;
       let newY = startTop;
@@ -53,6 +69,18 @@ export function makeResizable(el, widget, onSave) {
       if (corner.includes("n")) {
         newH = Math.max(MIN_H, startH - dy);
         newY = startTop + (startH - newH);
+      }
+
+      newW = Math.min(newW, currentBounds.width);
+      newH = Math.min(newH, currentBounds.height);
+      newX = Math.max(0, Math.min(newX, currentBounds.width - newW));
+      newY = Math.max(0, Math.min(newY, currentBounds.height - newH));
+
+      if (corner.includes("e")) {
+        newW = Math.min(newW, currentBounds.width - newX);
+      }
+      if (corner.includes("s")) {
+        newH = Math.min(newH, currentBounds.height - newY);
       }
 
       widget.x = newX;

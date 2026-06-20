@@ -10,8 +10,13 @@ export function isInteracting() {
   return activeDrags > 0 || isResizing();
 }
 
-/** @param {HTMLElement} el @param {import("./data/defaults.js").Widget} widget @param {() => void} onSave */
-export function makeDraggable(el, widget, onSave) {
+/**
+ * @param {HTMLElement} el
+ * @param {import("./data/defaults.js").Widget} widget
+ * @param {() => void} onSave
+ * @param {() => { getScalerRect: () => DOMRect, getDesignBounds: () => { width: number, height: number } }} getInteractionContext
+ */
+export function makeDraggable(el, widget, onSave, getInteractionContext) {
   const handle = el.querySelector(".widget-header");
   if (!handle) return;
 
@@ -22,8 +27,15 @@ export function makeDraggable(el, widget, onSave) {
   const onMouseMove = (e) => {
     if (!dragging) return;
 
-    widget.x = e.clientX - offsetX;
-    widget.y = e.clientY - offsetY;
+    const { getScalerRect, getDesignBounds } = getInteractionContext();
+    const rect = getScalerRect();
+    const bounds = getDesignBounds();
+
+    const x = ((e.clientX - rect.left) / rect.width) * bounds.width;
+    const y = ((e.clientY - rect.top) / rect.height) * bounds.height;
+
+    widget.x = Math.max(0, Math.min(x - offsetX, bounds.width - widget.w));
+    widget.y = Math.max(0, Math.min(y - offsetY, bounds.height - widget.h));
 
     el.style.left = `${widget.x}px`;
     el.style.top = `${widget.y}px`;
@@ -44,8 +56,15 @@ export function makeDraggable(el, widget, onSave) {
     e.stopPropagation();
     dragging = true;
     activeDrags += 1;
-    offsetX = e.clientX - widget.x;
-    offsetY = e.clientY - widget.y;
+
+    const { getScalerRect, getDesignBounds } = getInteractionContext();
+    const rect = getScalerRect();
+    const bounds = getDesignBounds();
+    const x = ((e.clientX - rect.left) / rect.width) * bounds.width;
+    const y = ((e.clientY - rect.top) / rect.height) * bounds.height;
+
+    offsetX = x - widget.x;
+    offsetY = y - widget.y;
     el.classList.add("dragging");
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);

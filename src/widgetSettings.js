@@ -60,7 +60,6 @@ export function initWidgetSettings({
       return;
     }
 
-    modal.hidden = false;
     title.textContent = `Настройки: ${TYPE_NAMES[widget.type] || widget.type}`;
 
     const isTextType = widget.type === "clock" || widget.type === "date" || widget.type === "text";
@@ -81,6 +80,13 @@ export function initWidgetSettings({
     if (widget.type === "image") {
       urlInput.value = widget.url || "";
     }
+  }
+
+  function openModal() {
+    const widget = getSelectedWidget();
+    if (!widget) return;
+    syncForm();
+    modal.hidden = false;
   }
 
   closeBtn.addEventListener("click", onClose);
@@ -162,5 +168,5 @@ export function initWidgetSettings({
     fileInput.value = "";
   });
 
-  return { syncForm };
+  return { syncForm, openModal };
 }

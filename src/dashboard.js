@@ -1,9 +1,15 @@
-import { loadData, saveData } from "./storage.js";
+import { loadDashboard, saveData, listDashboards } from "./storage.js";
 import { createWidgetElement, renderWidgetContent } from "./widgets.js";
 import { isInteracting, makeDraggable } from "./drag.js";
 import { makeResizable } from "./resize.js";
 import { defaultTransition } from "./data/defaults.js";
 import { playTransition, createScreenLayer } from "./screenTransitions.js";
+import {
+  computeScale,
+  clampWidgetBounds,
+  clampAllWidgets,
+  hasWidgetsOutOfBounds,
+} from "./scale.js";
 import { icon } from "./icons.js";
 
 /**
@@ -12,32 +18,69 @@ import { icon } from "./icons.js";
  * @param {HTMLElement} options.dashboard
  * @param {HTMLElement} options.screenTitle
  * @param {HTMLElement} [options.screenList]
+ * @param {HTMLElement} [options.dashboardList]
  * @param {HTMLInputElement} [options.primaryColorInput]
  * @param {HTMLInputElement} [options.backgroundColorInput]
+ * @param {number} [options.dashboardId]
+ * @param {string} [options.dashboardSlug]
+ * @param {HTMLAnchorElement} [options.viewDashboardLink]
  * @param {() => void} [options.onSelectionChange]
  * @param {(index: number) => void} [options.onScreenChange]
  * @param {(screen: import("./data/defaults.js").Screen) => void} [options.onOpenScreenSettings]
+ * @param {() => void} [options.onDashboardListChange]
+ * @param {(meta: { id: number, slug: string | null }) => void} [options.onDashboardSwitch]
+ * @param {() => void} [options.onOpenWidgetSettings]
+ * @param {(id: number) => void} [options.onOpenDashboardSettings]
  */
 export async function initDashboard({
   settingsMode,
   dashboard,
   screenTitle,
   screenList,
+  dashboardList,
   primaryColorInput,
   backgroundColorInput,
+  dashboardId,
+  dashboardSlug,
+  viewDashboardLink,
   onSelectionChange,
   onScreenChange,
   onOpenScreenSettings,
+  onDashboardListChange,
+  onDashboardSwitch,
+  onOpenWidgetSettings,
+  onOpenDashboardSettings,
 }) {
-  const data = await loadData();
+  const loaded = await loadDashboard({ id: dashboardId, slug: dashboardSlug });
+  /** @type {import("./data/defaults.js").DashboardData} */
+  let data = loaded.data;
+  /** @type {{ id: number, name: string, slug: string | null, updatedAt: string }} */
+  let meta = loaded.meta;
   /** @type {number | null} */
   let selectedWidgetId = null;
   let isTransitioning = false;
   /** @type {(() => void) | null} */
   let onNavigateComplete = null;
 
+  /** @type {HTMLElement | null} */
+  let canvasViewport = null;
+  /** @type {HTMLElement | null} */
+  let canvasScaler = null;
+  /** @type {ResizeObserver | null} */
+  let resizeObserver = null;
+
+  function getInteractionContext() {
+    return {
+      getScalerRect: () => canvasScaler?.getBoundingClientRect() ?? new DOMRect(),
+      getDesignBounds: () => ({
+        width: data.designWidth,
+        height: data.designHeight,
+      }),
+    };
+  }
+
   async function save() {
-    return saveData(data);
+    return saveData(meta.id, data);
   }
 
   function applyThemeToDom() {
@@ -45,6 +88,72 @@ export async function initDashboard({
     document.documentElement.style.setProperty("--background", data.theme.background);
     if (primaryColorInput) primaryColorInput.value = data.theme.primary;
     if (backgroundColorInput) backgroundColorInput.value = data.theme.background;
+    if (canvasViewport) {
+      canvasViewport.style.background = data.theme.background;
+    }
+  }
+
+  function updateViewLink() {
+    if (!viewDashboardLink) return;
+    const params = meta.slug
+      ? `?slug=${encodeURIComponent(meta.slug)}`
+      : `?id=${meta.id}`;
+    viewDashboardLink.href = `/${params}`;
+  }
+
+  function updateCanvasSize() {
+    if (!canvasScaler || !canvasViewport) return;
+
+    canvasScaler.style.width = `${data.designWidth}px`;
+    canvasScaler.style.height = `${data.designHeight}px`;
+
+    const containerW = dashboard.clientWidth;
+    const containerH = dashboard.clientHeight;
+    const scaleInfo = computeScale(
+      containerW,
+      containerH,
+      data.designWidth,
+      data.designHeight
+    );
+
+    canvasScaler.style.transform = `translate(${scaleInfo.offsetX}px, ${scaleInfo.offsetY}px) scale(${scaleInfo.scale})`;
+  }
+
+  function ensureCanvasStructure() {
+    if (canvasViewport && canvasScaler && dashboard.contains(canvasViewport)) {
+      updateCanvasSize();
+      return canvasScaler;
+    }
+
+    dashboard.innerHTML = "";
+
+    canvasViewport = document.createElement("div");
+    canvasViewport.className = "canvas-viewport";
+
+    if (settingsMode) {
+      const letterbox = document.createElement("div");
+      letterbox.className = "canvas-letterbox";
+      letterbox.setAttribute("aria-hidden", "true");
+      canvasViewport.appendChild(letterbox);
+    }
+
+    canvasScaler = document.createElement("div");
+    canvasScaler.className = "canvas-scaler";
+    if (settingsMode) {
+      canvasScaler.classList.add("canvas-scaler--edit");
+    }
+
+    canvasViewport.appendChild(canvasScaler);
+    dashboard.appendChild(canvasViewport);
+
+    if (!resizeObserver) {
+      resizeObserver = new ResizeObserver(() => updateCanvasSize());
+      resizeObserver.observe(dashboard);
+    }
+
+    applyThemeToDom();
+    updateCanvasSize();
+    return canvasScaler;
   }
 
   /** @returns {import("./data/defaults.js").Screen} */
@@ -56,6 +165,18 @@ export async function initDashboard({
     return data.currentScreen;
   }
 
+  function getData() {
+    return data;
+  }
+
+  function getDashboardMeta() {
+    return meta;
+  }
+
+  function getDashboardId() {
+    return meta.id;
+  }
+
   /**
    * @param {import("./data/defaults.js").Screen} screen
    * @param {HTMLElement} layerEl
@@ -64,17 +185,25 @@ export async function initDashboard({
     layerEl.innerHTML = "";
 
     screen.widgets.forEach((widget) => {
+      clampWidgetBounds(widget, data.designWidth, data.designHeight);
       const el = createWidgetElement(widget, settingsMode, selectedWidgetId);
       layerEl.appendChild(el);
 
       if (settingsMode) {
-        makeDraggable(el, widget, save);
-        makeResizable(el, widget, save);
+        makeDraggable(el, widget, save, getInteractionContext);
+        makeResizable(el, widget, save, getInteractionContext);
 
         el.addEventListener("mousedown", (e) => {
           if (e.target instanceof Element && e.target.closest(".resize-handle")) return;
           e.stopPropagation();
           selectWidget(widget.id);
+        });
+
+        el.addEventListener("dblclick", (e) => {
+          if (e.target instanceof Element && e.target.closest(".resize-handle")) return;
+          e.stopPropagation();
+          selectWidget(widget.id);
+          onOpenWidgetSettings?.();
         });
       }
     });
@@ -117,9 +246,87 @@ export async function initDashboard({
     });
   }
 
+  async function renderDashboardList() {
+    if (!dashboardList) return;
+
+    try {
+      const dashboards = await listDashboards();
+
+    dashboardList.innerHTML = "";
+
+    dashboards.forEach((item) => {
+      const row = document.createElement("div");
+      row.className = "dashboard-list-item";
+
+      const nameBtn = document.createElement("button");
+      nameBtn.type = "button";
+      nameBtn.className = "btn btn-screen-name";
+      if (item.id === meta.id) {
+        nameBtn.classList.add("active-screen");
+      }
+      nameBtn.textContent = item.name;
+      nameBtn.onclick = () => {
+        if (item.id === meta.id) return;
+        switchDashboard(item.id);
+      };
+
+      const settingsBtn = document.createElement("button");
+      settingsBtn.type = "button";
+      settingsBtn.className = "btn btn-screen-settings btn-icon-only";
+      settingsBtn.title = "Настройки дашборда";
+      settingsBtn.appendChild(icon("cog", "btn-icon"));
+      settingsBtn.onclick = async (e) => {
+        e.stopPropagation();
+        if (item.id !== meta.id) {
+          await switchDashboard(item.id);
+        }
+        onOpenDashboardSettings?.(item.id);
+      };
+
+      row.appendChild(nameBtn);
+      row.appendChild(settingsBtn);
+      dashboardList.appendChild(row);
+    });
+
+    onDashboardListChange?.();
+    } catch (err) {
+      console.error("Failed to render dashboard list:", err);
+    }
+  }
+
+  /** @param {number} id */
+  async function switchDashboard(id) {
+    const next = await loadDashboard({ id });
+    meta = next.meta;
+    data = next.data;
+    selectedWidgetId = null;
+    onSelectionChange?.();
+    updateViewLink();
+    onDashboardSwitch?.({ id: meta.id, slug: meta.slug });
+    render({ animate: false });
+    await renderDashboardList();
+  }
+
+  /**
+   * @param {import("./data/defaults.js").DashboardData} nextData
+   * @param {{ id: number, name: string, slug: string | null, updatedAt: string }} [nextMeta]
+   */
+  async function reload(nextData, nextMeta) {
+    data = nextData;
+    if (nextMeta) meta = nextMeta;
+    selectedWidgetId = null;
+    onSelectionChange?.();
+    updateViewLink();
+    render({ animate: false });
+    await renderDashboardList();
+  }
+
   function updateLiveContent() {
+    const scaler = canvasScaler;
+    if (!scaler) return;
+
     const screen = getCurrentScreen();
-    const layer = dashboard.querySelector(".screen-layer");
+    const layer = scaler.querySelector(".screen-layer");
     if (!layer) return;
 
     screen.widgets.forEach((widget) => {
@@ -170,10 +377,12 @@ export async function initDashboard({
     if (settingsMode && isInteracting()) return;
 
     const screen = getCurrentScreen();
-    screenTitle.textContent = screen.name;
+    screenTitle.textContent = settingsMode ? `${meta.name} — ${screen.name}` : meta.name;
 
-    dashboard.innerHTML = "";
-    const layer = createScreenLayer(dashboard);
+    const scaler = ensureCanvasStructure();
+    scaler.querySelectorAll(".screen-layer").forEach((layer) => layer.remove());
+
+    const layer = createScreenLayer(scaler);
     renderScreenContent(screen, layer);
     renderScreens();
   }
@@ -205,13 +414,18 @@ export async function initDashboard({
 
     isTransitioning = true;
 
-    const outgoingLayer = dashboard.querySelector(".screen-layer") ?? createScreenLayer(dashboard);
+    const scaler = ensureCanvasStructure();
+    scaler.querySelectorAll(".screen-layer").forEach((layer) => layer.remove());
+
+    const outgoingLayer = createScreenLayer(scaler);
     renderScreenContent(outgoingScreen, outgoingLayer);
 
-    const incomingLayer = createScreenLayer(dashboard);
+    const incomingLayer = createScreenLayer(scaler);
     renderScreenContent(incomingScreen, incomingLayer);
 
-    screenTitle.textContent = incomingScreen.name;
+    screenTitle.textContent = settingsMode
+      ? `${meta.name} — ${incomingScreen.name}`
+      : meta.name;
     renderScreens();
 
     await playTransition(outgoingLayer, incomingLayer, transition);
@@ -220,8 +434,8 @@ export async function initDashboard({
     selectedWidgetId = null;
     onSelectionChange?.();
 
-    dashboard.innerHTML = "";
-    const layer = createScreenLayer(dashboard);
+    scaler.querySelectorAll(".screen-layer").forEach((layer) => layer.remove());
+    const layer = createScreenLayer(scaler);
     renderScreenContent(incomingScreen, layer);
 
     isTransitioning = false;
@@ -339,6 +553,8 @@ export async function initDashboard({
       widget.h = 250;
     }
 
+    clampWidgetBounds(widget, data.designWidth, data.designHeight);
+
     screen.widgets.push(widget);
     selectedWidgetId = widget.id;
     onSelectionChange?.();
@@ -357,13 +573,43 @@ export async function initDashboard({
     return save();
   }
 
+  /**
+   * @param {number} designWidth
+   * @param {number} designHeight
+   * @param {{ clampWidgets?: boolean }} [options]
+   */
+  async function applyResolution(designWidth, designHeight, options = {}) {
+    data.designWidth = designWidth;
+    data.designHeight = designHeight;
+
+    if (options.clampWidgets) {
+      clampAllWidgets(data, designWidth, designHeight);
+    }
+
+    render({ animate: false });
+    return save();
+  }
+
+  function checkResolutionBounds(designWidth, designHeight) {
+    return hasWidgetsOutOfBounds(data, designWidth, designHeight);
+  }
+
+  function updateDashboardMetaLocal(partial) {
+    meta = { ...meta, ...partial };
+    updateViewLink();
+    screenTitle.textContent = settingsMode
+      ? `${meta.name} — ${getCurrentScreen().name}`
+      : meta.name;
+  }
+
   /** @param {() => void} callback */
   function setOnNavigateComplete(callback) {
     onNavigateComplete = callback;
   }
 
   if (settingsMode) {
-    dashboard.addEventListener("mousedown", () => {
+    dashboard.addEventListener("mousedown", (e) => {
+      if (e.target instanceof Element && e.target.closest(".canvas-scaler")) return;
       if (selectedWidgetId !== null) {
         selectWidget(null);
       }
@@ -371,10 +617,14 @@ export async function initDashboard({
   }
 
   applyThemeToDom();
+  updateViewLink();
   render({ animate: false });
+  await renderDashboardList();
 
   return {
     render: () => render({ animate: false }),
+    reload,
+    switchDashboard,
     updateLiveContent,
     nextScreen,
     goToScreen,
@@ -382,15 +632,22 @@ export async function initDashboard({
     addScreen,
     addWidget,
     applyTheme,
+    applyResolution,
+    checkResolutionBounds,
     getSelectedWidget,
     getCurrentScreen,
     getCurrentScreenIndex,
     getScreen,
     getScreenCount,
+    getData,
+    getDashboardMeta,
+    getDashboardId,
     selectWidget,
     deleteSelectedWidget,
     deleteScreen,
     setOnNavigateComplete,
+    renderDashboardList,
+    updateDashboardMetaLocal,
     save,
   };
 }

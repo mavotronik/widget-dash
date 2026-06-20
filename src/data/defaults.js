@@ -2,7 +2,7 @@
 /** @typedef {{ key: string, action: 'next' | 'goto', targetScreenIndex?: number }} EventTrigger */
 /** @typedef {{ advanceMode: 'timer' | 'button' | 'event', displayDuration: number, enterEffect: 'none' | 'fade' | 'slideUp' | 'slideDown' | 'overlay', animationDuration: number, eventTrigger?: EventTrigger }} ScreenTransition */
 /** @typedef {{ name: string, widgets: Widget[], transition: ScreenTransition }} Screen */
-/** @typedef {{ theme: { primary: string, background: string }, currentScreen: number, screens: Screen[] }} DashboardData */
+/** @typedef {{ designWidth: number, designHeight: number, theme: { primary: string, background: string }, currentScreen: number, screens: Screen[] }} DashboardData */
 
 /** @returns {ScreenTransition} */
 export function defaultTransition() {
@@ -14,8 +14,30 @@ export function defaultTransition() {
   };
 }
 
+/** @param {number} [designWidth] @param {number} [designHeight] @returns {DashboardData} */
+export function createEmptyDashboard(designWidth = 1920, designHeight = 1080) {
+  return {
+    designWidth,
+    designHeight,
+    theme: {
+      primary: "#2196f3",
+      background: "#111827",
+    },
+    currentScreen: 0,
+    screens: [
+      {
+        name: "Экран 1",
+        transition: defaultTransition(),
+        widgets: [],
+      },
+    ],
+  };
+}
+
 /** @type {DashboardData} */
 export const defaultData = {
+  designWidth: 1920,
+  designHeight: 1080,
   theme: {
     primary: "#2196f3",
     background: "#111827",

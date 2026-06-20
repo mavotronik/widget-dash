@@ -10,7 +10,7 @@
 
 <div class="topbar">
   <div>
-    <a class="btn btn-with-icon" href="/">
+    <a class="btn btn-with-icon" id="viewDashboardLink" href="/">
       <span class="mdi mdi-arrow-left btn-icon" aria-hidden="true"></span>
       <span>Дашборд</span>
     </a>
@@ -30,12 +30,25 @@
 
 <div class="main">
   <aside class="sidebar active" id="sidebar">
+    <h3>Дашборды</h3>
+    <div class="dashboard-list" id="dashboardList"></div>
+    <button class="btn btn-with-icon" id="createDashboardBtn" type="button">
+      <span class="mdi mdi-plus btn-icon" aria-hidden="true"></span>
+      <span>Создать дашборд</span>
+    </button>
+    <button class="btn btn-with-icon btn-secondary" id="saveBlueprintBtn" type="button">
+      <span class="mdi mdi-content-save btn-icon" aria-hidden="true"></span>
+      <span>Сохранить как blueprint</span>
+    </button>
+
+    <hr class="divider">
+
     <h3>Тема</h3>
     <label for="primaryColor">Основной цвет</label>
     <input type="color" id="primaryColor">
     <label for="backgroundColor">Фон</label>
     <input type="color" id="backgroundColor">
-    <button class="btn btn-with-icon" id="applyThemeBtn">
+    <button class="btn btn-with-icon" id="applyThemeBtn" type="button">
       <span class="mdi mdi-check btn-icon" aria-hidden="true"></span>
       <span>Применить</span>
     </button>
@@ -44,7 +57,7 @@
 
     <h3>Экраны</h3>
     <div class="screen-list" id="screenList"></div>
-    <button class="btn btn-with-icon" id="addScreenBtn">
+    <button class="btn btn-with-icon" id="addScreenBtn" type="button">
       <span class="mdi mdi-plus btn-icon" aria-hidden="true"></span>
       <span>Экран</span>
     </button>
@@ -52,25 +65,122 @@
     <hr class="divider">
 
     <h3>Виджеты</h3>
-    <button class="btn btn-with-icon" data-widget="clock">
+    <button class="btn btn-with-icon" type="button" data-widget="clock">
       <span class="mdi mdi-clock-outline btn-icon" aria-hidden="true"></span>
       <span>Часы</span>
     </button>
-    <button class="btn btn-with-icon" data-widget="date">
+    <button class="btn btn-with-icon" type="button" data-widget="date">
       <span class="mdi mdi-calendar btn-icon" aria-hidden="true"></span>
       <span>Дата</span>
     </button>
-    <button class="btn btn-with-icon" data-widget="text">
+    <button class="btn btn-with-icon" type="button" data-widget="text">
       <span class="mdi mdi-format-text btn-icon" aria-hidden="true"></span>
       <span>Текст</span>
     </button>
-    <button class="btn btn-with-icon" data-widget="image">
+    <button class="btn btn-with-icon" type="button" data-widget="image">
       <span class="mdi mdi-image btn-icon" aria-hidden="true"></span>
       <span>Картинка</span>
     </button>
   </aside>
 
   <div class="dashboard" id="dashboard"></div>
+</div>
+
+<div id="dashboardSettingsModal" class="modal-overlay" hidden>
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 id="dashboardSettingsTitle">Настройки дашборда</h3>
+      <button type="button" class="modal-close" id="dashboardSettingsClose" aria-label="Закрыть">
+        <span class="mdi mdi-close" aria-hidden="true"></span>
+      </button>
+    </div>
+    <div class="modal-body">
+      <label for="dashboardSettingsName">Название</label>
+      <input type="text" id="dashboardSettingsName">
+
+      <label for="dashboardSettingsSlug">Slug (URL)</label>
+      <input type="text" id="dashboardSettingsSlug" placeholder="main">
+
+      <label for="dashboardSettingsResolutionPreset">Разрешение холста</label>
+      <select id="dashboardSettingsResolutionPreset"></select>
+
+      <label for="dashboardSettingsDesignWidth">Ширина (px)</label>
+      <input type="number" id="dashboardSettingsDesignWidth" min="320" max="7680">
+
+      <label for="dashboardSettingsDesignHeight">Высота (px)</label>
+      <input type="number" id="dashboardSettingsDesignHeight" min="240" max="4320">
+
+      <button type="button" class="btn btn-with-icon" id="dashboardSettingsSaveBtn">
+        <span class="mdi mdi-check btn-icon" aria-hidden="true"></span>
+        <span>Сохранить</span>
+      </button>
+
+      <button type="button" class="btn btn-danger btn-with-icon" id="dashboardSettingsDeleteBtn">
+        <span class="mdi mdi-delete btn-icon" aria-hidden="true"></span>
+        <span>Удалить дашборд</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="createDashboardModal" class="modal-overlay" hidden>
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3>Новый дашборд</h3>
+      <button type="button" class="modal-close" id="createDashboardClose" aria-label="Закрыть">
+        <span class="mdi mdi-close" aria-hidden="true"></span>
+      </button>
+    </div>
+    <div class="modal-body">
+      <label for="newDashboardName">Название</label>
+      <input type="text" id="newDashboardName" placeholder="Мой дашборд">
+
+      <label for="newDashboardSlug">Slug (URL)</label>
+      <input type="text" id="newDashboardSlug" placeholder="my-dashboard">
+
+      <label for="newDashboardBlueprint">Blueprint (необязательно)</label>
+      <select id="newDashboardBlueprint">
+        <option value="">Без шаблона</option>
+      </select>
+
+      <label for="newResolutionPreset">Разрешение</label>
+      <select id="newResolutionPreset"></select>
+
+      <label for="newDesignWidth">Ширина (px)</label>
+      <input type="number" id="newDesignWidth" min="320" max="7680">
+
+      <label for="newDesignHeight">Высота (px)</label>
+      <input type="number" id="newDesignHeight" min="240" max="4320">
+
+      <button type="button" class="btn btn-with-icon" id="createDashboardConfirmBtn">
+        <span class="mdi mdi-check btn-icon" aria-hidden="true"></span>
+        <span>Создать</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="saveBlueprintModal" class="modal-overlay" hidden>
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3>Сохранить blueprint</h3>
+      <button type="button" class="modal-close" id="saveBlueprintClose" aria-label="Закрыть">
+        <span class="mdi mdi-close" aria-hidden="true"></span>
+      </button>
+    </div>
+    <div class="modal-body">
+      <label for="blueprintName">Название</label>
+      <input type="text" id="blueprintName" placeholder="Шаблон lobby">
+
+      <label for="blueprintDescription">Описание</label>
+      <input type="text" id="blueprintDescription" placeholder="Необязательно">
+
+      <button type="button" class="btn btn-with-icon" id="saveBlueprintConfirmBtn">
+        <span class="mdi mdi-content-save btn-icon" aria-hidden="true"></span>
+        <span>Сохранить</span>
+      </button>
+    </div>
+  </div>
 </div>
 
 <div id="screenSettingsModal" class="modal-overlay" hidden>

@@ -116,6 +116,8 @@ body {
 
 .sidebar.active {
   display: block;
+  position: relative;
+  z-index: 2;
 }
 
 .sidebar h3 {
@@ -138,6 +140,57 @@ body {
   flex: 1;
   position: relative;
   overflow: hidden;
+}
+
+.canvas-viewport {
+  position: absolute;
+  inset: 0;
+  background: var(--background);
+  overflow: hidden;
+}
+
+.canvas-scaler--edit {
+  outline: 2px solid var(--primary);
+}
+
+.canvas-letterbox {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
+  z-index: 0;
+}
+
+.canvas-scaler {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+  background: var(--background);
+  z-index: 1;
+}
+
+.dashboard-list,
+.screen-list {
+  margin-bottom: 8px;
+}
+
+.dashboard-list-item {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 5px;
+}
+
+.dashboard-list-item .btn-screen-name {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.dashboard-list-item .btn-screen-settings {
+  flex: 0 0 auto;
+  width: 36px;
+  padding: 8px;
+  margin-bottom: 0;
 }
 
 .screen-layer {

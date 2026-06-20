@@ -68,5 +68,13 @@ export function normalizeDashboard(data) {
     data.theme = { primary: "#2196f3", background: "#111827" };
   }
 
+  if (typeof data.designWidth !== "number" || data.designWidth < 320) {
+    data.designWidth = 1920;
+  }
+
+  if (typeof data.designHeight !== "number" || data.designHeight < 240) {
+    data.designHeight = 1080;
+  }
+
   return /** @type {import("./defaults.js").DashboardData} */ (data);
 }

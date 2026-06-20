@@ -39,10 +39,10 @@ export function playTransition(outgoingLayer, incomingLayer, transition) {
   });
 }
 
-/** @param {HTMLElement} dashboard */
-export function createScreenLayer(dashboard) {
+/** @param {HTMLElement} parent */
+export function createScreenLayer(parent) {
   const layer = document.createElement("div");
   layer.className = "screen-layer";
-  dashboard.appendChild(layer);
+  parent.appendChild(layer);
   return layer;
 }

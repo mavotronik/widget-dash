@@ -2,7 +2,8 @@ import express from "express";
 import cors from "cors";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import dashboardRouter from "./routes/dashboard.js";
+import dashboardsRouter from "./routes/dashboards.js";
+import blueprintsRouter from "./routes/blueprints.js";
 import uploadRouter from "./routes/upload.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -15,7 +16,8 @@ app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
 app.use("/uploads", express.static(join(__dirname, "../data/uploads")));
-app.use("/api/dashboard", dashboardRouter);
+app.use("/api/dashboards", dashboardsRouter);
+app.use("/api/blueprints", blueprintsRouter);
 app.use("/api/upload", uploadRouter);
 
 if (isProd) {

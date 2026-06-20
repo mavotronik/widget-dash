@@ -4,10 +4,16 @@ async function main() {
   /** @type {ReturnType<typeof setTimeout> | null} */
   let advanceTimer = null;
 
+  const params = new URLSearchParams(window.location.search);
+  const dashboardId = params.get("id") ? Number(params.get("id")) : undefined;
+  const dashboardSlug = params.get("slug") ?? undefined;
+
   const dashboardApi = await initDashboard({
     settingsMode: false,
     dashboard: document.getElementById("dashboard"),
     screenTitle: document.getElementById("screenTitle"),
+    dashboardId,
+    dashboardSlug,
   });
 
   const nextBtn = document.getElementById("nextScreenBtn");
@@ -42,11 +48,6 @@ async function main() {
 
   setInterval(dashboardApi.updateLiveContent, 1000);
   scheduleAdvance();
-
-  // Future: connect external events via SSE or POST /api/events
-  // eventSource.addEventListener('navigate', (e) => {
-  //   dashboardApi.handleExternalEvent(JSON.parse(e.data).key);
-  // });
 }
 
 main();
