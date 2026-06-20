@@ -44,15 +44,16 @@ function syncResolutionInputsFromPreset(presetSelect, widthInput, heightInput) {
  * @param {HTMLSelectElement} options.resolutionPreset
  * @param {HTMLInputElement} options.designWidthInput
  * @param {HTMLInputElement} options.designHeightInput
- * @param {HTMLButtonElement} options.saveBtn
  * @param {HTMLButtonElement} options.deleteBtn
  * @param {() => { id: number, name: string, slug: string | null }} options.getDashboardMeta
  * @param {() => import("./data/defaults.js").DashboardData} options.getData
- * @param {(width: number, height: number, opts?: { clampWidgets?: boolean }) => Promise<import("./toast.js").ActionResult>} options.onApplyResolution
+ * @param {(width: number, height: number, opts?: { clampWidgets?: boolean }) => void} options.onApplyResolutionPreview
  * @param {(width: number, height: number) => boolean} options.checkResolutionBounds
  * @param {(payload: { name?: string, slug?: string | null }) => Promise<void>} options.onSaveMeta
  * @param {(payload: { name: string, slug: string | null }) => void} options.onUpdateMetaLocal
- * @param {() => Promise<void>} options.onAfterSave
+ * @param {() => Promise<import("./toast.js").ActionResult>} options.onPersistData
+ * @param {() => Promise<void>} options.onAfterMetaSave
+ * @param {(fn: () => Promise<import("./toast.js").ActionResult> | import("./toast.js").ActionResult) => void} options.notifyPersist
  * @param {() => Promise<import("./toast.js").ActionResult>} options.onDelete
  */
 export function initDashboardSettings({
@@ -64,20 +65,54 @@ export function initDashboardSettings({
   resolutionPreset,
   designWidthInput,
   designHeightInput,
-  saveBtn,
   deleteBtn,
   getDashboardMeta,
   getData,
-  onApplyResolution,
+  onApplyResolutionPreview,
   checkResolutionBounds,
   onSaveMeta,
   onUpdateMetaLocal,
-  onAfterSave,
+  onPersistData,
+  onAfterMetaSave,
+  notifyPersist,
   onDelete,
 }) {
   populateResolutionSelect(resolutionPreset);
 
+  /** @type {{ name: string, slug: string | null }} */
+  let lastSavedMeta = { name: "", slug: null };
+  /** @type {{ width: number, height: number }} */
+  let lastSavedResolution = { width: 0, height: 0 };
+  let isSyncing = false;
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let resolutionDebounceTimer = null;
+  /** @type {Promise<void>} */
+  let persistQueue = Promise.resolve();
+
+  function readFormMeta() {
+    return {
+      name: nameInput.value.trim(),
+      slug: slugInput.value.trim() || null,
+    };
+  }
+
+  function readFormResolution() {
+    return resolveResolution(
+      resolutionPreset.value,
+      Number(designWidthInput.value),
+      Number(designHeightInput.value)
+    );
+  }
+
+  function syncSavedStateFromCurrent() {
+    const meta = getDashboardMeta();
+    const data = getData();
+    lastSavedMeta = { name: meta.name, slug: meta.slug ?? null };
+    lastSavedResolution = { width: data.designWidth, height: data.designHeight };
+  }
+
   function syncForm() {
+    isSyncing = true;
     const meta = getDashboardMeta();
     const data = getData();
 
@@ -88,6 +123,8 @@ export function initDashboardSettings({
     designWidthInput.value = String(data.designWidth);
     designHeightInput.value = String(data.designHeight);
     syncResolutionInputsFromPreset(resolutionPreset, designWidthInput, designHeightInput);
+    syncSavedStateFromCurrent();
+    isSyncing = false;
   }
 
   function open() {
@@ -99,6 +136,103 @@ export function initDashboardSettings({
     modal.hidden = true;
   }
 
+  function updateMetaPreview() {
+    const { name, slug } = readFormMeta();
+    if (!name) return;
+    onUpdateMetaLocal({ name, slug });
+  }
+
+  function schedulePersist() {
+    notifyPersist(async () => {
+      persistQueue = persistQueue.then(() => persistChanges());
+      return persistQueue;
+    });
+  }
+
+  async function persistChanges() {
+    const { name, slug } = readFormMeta();
+    if (!name) {
+      return { ok: false, error: "Укажите название" };
+    }
+
+    const { width, height } = readFormResolution();
+    const metaChanged =
+      name !== lastSavedMeta.name || slug !== lastSavedMeta.slug;
+    const resolutionChanged =
+      width !== lastSavedResolution.width || height !== lastSavedResolution.height;
+
+    if (!metaChanged && !resolutionChanged) {
+      return { ok: true };
+    }
+
+    if (metaChanged) {
+      try {
+        await onSaveMeta({ name, slug });
+        onUpdateMetaLocal({ name, slug });
+        lastSavedMeta = { name, slug };
+        await onAfterMetaSave();
+      } catch (err) {
+        syncForm();
+        throw err;
+      }
+    }
+
+    if (resolutionChanged) {
+      const result = await onPersistData();
+      if (result.ok) {
+        lastSavedResolution = { width, height };
+      } else {
+        syncForm();
+      }
+      return result;
+    }
+
+    return { ok: true };
+  }
+
+  async function applyResolutionFromForm() {
+    if (isSyncing) return;
+
+    const { width, height } = readFormResolution();
+    const data = getData();
+
+    if (data.designWidth === width && data.designHeight === height) {
+      return;
+    }
+
+    if (checkResolutionBounds(width, height)) {
+      const clamp = await showConfirm({
+        title: "Изменение разрешения",
+        message:
+          "Некоторые виджеты выходят за новые границы холста. Обрезать их позиции?",
+        confirmText: "Обрезать",
+        cancelText: "Отмена",
+      });
+
+      if (!clamp) {
+        syncForm();
+        return;
+      }
+
+      onApplyResolutionPreview(width, height, { clampWidgets: true });
+    } else {
+      onApplyResolutionPreview(width, height);
+    }
+
+    schedulePersist();
+  }
+
+  function scheduleResolutionApply() {
+    if (resolutionDebounceTimer !== null) {
+      clearTimeout(resolutionDebounceTimer);
+    }
+
+    resolutionDebounceTimer = setTimeout(() => {
+      resolutionDebounceTimer = null;
+      void applyResolutionFromForm();
+    }, 700);
+  }
+
   closeBtn.addEventListener("click", close);
 
   modal.addEventListener("mousedown", (e) => {
@@ -106,60 +240,39 @@ export function initDashboardSettings({
   });
 
   resolutionPreset.addEventListener("change", () => {
+    if (isSyncing) return;
     syncResolutionInputsFromPreset(resolutionPreset, designWidthInput, designHeightInput);
+    void applyResolutionFromForm();
   });
 
-  saveBtn.addEventListener("click", () => {
-    void runAction("Сохранение", async () => {
-      const name = nameInput.value.trim();
-      if (!name) return { ok: false, error: "Укажите название" };
+  nameInput.addEventListener("input", () => {
+    if (isSyncing) return;
+    updateMetaPreview();
+    schedulePersist();
+  });
 
-      const slug = slugInput.value.trim() || null;
-      const { width, height } = resolveResolution(
-        resolutionPreset.value,
-        Number(designWidthInput.value),
-        Number(designHeightInput.value)
-      );
+  slugInput.addEventListener("input", () => {
+    if (isSyncing) return;
+    updateMetaPreview();
+    schedulePersist();
+  });
 
-      const data = getData();
-      const resolutionChanged = data.designWidth !== width || data.designHeight !== height;
+  designWidthInput.addEventListener("input", () => {
+    if (isSyncing) return;
+    if (resolutionPreset.value !== "custom") {
+      resolutionPreset.value = "custom";
+      syncResolutionInputsFromPreset(resolutionPreset, designWidthInput, designHeightInput);
+    }
+    scheduleResolutionApply();
+  });
 
-      if (resolutionChanged && checkResolutionBounds(width, height)) {
-        const clamp = await showConfirm({
-          title: "Изменение разрешения",
-          message:
-            "Некоторые виджеты выходят за новые границы холста. Обрезать их позиции?",
-          confirmText: "Обрезать",
-          cancelText: "Отмена",
-        });
-        if (!clamp) return { ok: false, error: "Отменено" };
-
-        await onSaveMeta({ name, slug });
-        onUpdateMetaLocal({ name, slug });
-        const result = await onApplyResolution(width, height, { clampWidgets: true });
-        if (result.ok) {
-          close();
-          await onAfterSave();
-        }
-        return result;
-      }
-
-      await onSaveMeta({ name, slug });
-      onUpdateMetaLocal({ name, slug });
-
-      if (resolutionChanged) {
-        const result = await onApplyResolution(width, height);
-        if (result.ok) {
-          close();
-          await onAfterSave();
-        }
-        return result;
-      }
-
-      close();
-      await onAfterSave();
-      return { ok: true };
-    });
+  designHeightInput.addEventListener("input", () => {
+    if (isSyncing) return;
+    if (resolutionPreset.value !== "custom") {
+      resolutionPreset.value = "custom";
+      syncResolutionInputsFromPreset(resolutionPreset, designWidthInput, designHeightInput);
+    }
+    scheduleResolutionApply();
   });
 
   deleteBtn.addEventListener("click", () => {

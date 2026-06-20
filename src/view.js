@@ -1,8 +1,14 @@
 import { initDashboard } from "./dashboard.js";
+import { loadDashboard } from "./storage.js";
+
+const POLL_INTERVAL_MS = 1000;
 
 async function main() {
   /** @type {ReturnType<typeof setTimeout> | null} */
   let advanceTimer = null;
+  /** @type {ReturnType<typeof setInterval> | null} */
+  let pollTimer = null;
+  let pollInFlight = false;
 
   const params = new URLSearchParams(window.location.search);
   const dashboardId = params.get("id") ? Number(params.get("id")) : undefined;
@@ -15,6 +21,8 @@ async function main() {
     dashboardId,
     dashboardSlug,
   });
+
+  let lastUpdatedAt = dashboardApi.getDashboardMeta().updatedAt;
 
   const nextBtn = document.getElementById("nextScreenBtn");
 
@@ -40,6 +48,24 @@ async function main() {
     }, screen.transition.displayDuration * 1000);
   }
 
+  async function pollForUpdates() {
+    if (pollInFlight) return;
+    pollInFlight = true;
+
+    try {
+      const loaded = await loadDashboard({ id: dashboardId, slug: dashboardSlug });
+      if (loaded.meta.updatedAt === lastUpdatedAt) return;
+
+      lastUpdatedAt = loaded.meta.updatedAt;
+      await dashboardApi.reload(loaded.data, loaded.meta);
+      scheduleAdvance();
+    } catch (err) {
+      console.error("Failed to poll dashboard updates:", err);
+    } finally {
+      pollInFlight = false;
+    }
+  }
+
   dashboardApi.setOnNavigateComplete(() => scheduleAdvance());
 
   if (nextBtn) {
@@ -47,6 +73,17 @@ async function main() {
   }
 
   setInterval(dashboardApi.updateLiveContent, 1000);
+  pollTimer = setInterval(() => {
+    void pollForUpdates();
+  }, POLL_INTERVAL_MS);
+
+  window.addEventListener("beforeunload", () => {
+    if (pollTimer !== null) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  });
+
   scheduleAdvance();
 }
 

@@ -563,14 +563,16 @@ export async function initDashboard({
   }
 
   async function applyTheme() {
-    if (!primaryColorInput || !backgroundColorInput) {
-      return { ok: false, error: "Не удалось применить тему" };
-    }
+    previewTheme();
+    return save();
+  }
+
+  function previewTheme() {
+    if (!primaryColorInput || !backgroundColorInput) return;
 
     data.theme.primary = primaryColorInput.value;
     data.theme.background = backgroundColorInput.value;
     applyThemeToDom();
-    return save();
   }
 
   /**
@@ -578,7 +580,7 @@ export async function initDashboard({
    * @param {number} designHeight
    * @param {{ clampWidgets?: boolean }} [options]
    */
-  async function applyResolution(designWidth, designHeight, options = {}) {
+  function applyResolutionPreview(designWidth, designHeight, options = {}) {
     data.designWidth = designWidth;
     data.designHeight = designHeight;
 
@@ -587,6 +589,15 @@ export async function initDashboard({
     }
 
     render({ animate: false });
+  }
+
+  /**
+   * @param {number} designWidth
+   * @param {number} designHeight
+   * @param {{ clampWidgets?: boolean }} [options]
+   */
+  async function applyResolution(designWidth, designHeight, options = {}) {
+    applyResolutionPreview(designWidth, designHeight, options);
     return save();
   }
 
@@ -632,7 +643,9 @@ export async function initDashboard({
     addScreen,
     addWidget,
     applyTheme,
+    previewTheme,
     applyResolution,
+    applyResolutionPreview,
     checkResolutionBounds,
     getSelectedWidget,
     getCurrentScreen,

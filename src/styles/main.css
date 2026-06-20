@@ -130,6 +130,12 @@ body {
   font-size: 14px;
 }
 
+.autosave-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  opacity: 0.65;
+}
+
 .divider {
   margin: 15px 0;
   border: none;

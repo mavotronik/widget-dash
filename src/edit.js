@@ -83,6 +83,7 @@ async function main() {
   const autoAdvanceLabel = document.getElementById("autoAdvanceLabel");
 
   const notifyEdit = createDebouncedActionNotifier("Редактирование");
+  const notifyDashboardSettingsSave = createDebouncedActionNotifier("Редактирование");
 
   function updateAutoAdvanceUi() {
     if (!autoAdvanceToggle || !autoAdvanceIcon || !autoAdvanceLabel) return;
@@ -217,17 +218,19 @@ async function main() {
     resolutionPreset: document.getElementById("dashboardSettingsResolutionPreset"),
     designWidthInput: document.getElementById("dashboardSettingsDesignWidth"),
     designHeightInput: document.getElementById("dashboardSettingsDesignHeight"),
-    saveBtn: document.getElementById("dashboardSettingsSaveBtn"),
     deleteBtn: document.getElementById("dashboardSettingsDeleteBtn"),
     getDashboardMeta: () => dashboardApi.getDashboardMeta(),
     getData: () => dashboardApi.getData(),
-    onApplyResolution: (width, height, opts) => dashboardApi.applyResolution(width, height, opts),
+    onApplyResolutionPreview: (width, height, opts) =>
+      dashboardApi.applyResolutionPreview(width, height, opts),
     checkResolutionBounds: (width, height) => dashboardApi.checkResolutionBounds(width, height),
     onSaveMeta: async ({ name, slug }) => {
       await updateDashboardMeta(dashboardApi.getDashboardId(), { name, slug });
     },
     onUpdateMetaLocal: (payload) => dashboardApi.updateDashboardMetaLocal(payload),
-    onAfterSave: () => dashboardApi.renderDashboardList(),
+    onPersistData: () => dashboardApi.save(),
+    onAfterMetaSave: () => dashboardApi.renderDashboardList(),
+    notifyPersist: notifyDashboardSettingsSave,
     onDelete: async () => {
       await deleteDashboard(dashboardApi.getDashboardId());
       await dashboardApi.switchDashboard(1);
@@ -370,8 +373,17 @@ async function main() {
     void runAction("Добавление", () => dashboardApi.addScreen());
   });
 
-  document.getElementById("applyThemeBtn").addEventListener("click", () => {
-    void runAction("Сохранение", () => dashboardApi.applyTheme());
+  const primaryColorInput = document.getElementById("primaryColor");
+  const backgroundColorInput = document.getElementById("backgroundColor");
+
+  primaryColorInput?.addEventListener("input", () => {
+    dashboardApi.previewTheme();
+    notifyEdit(() => dashboardApi.save());
+  });
+
+  backgroundColorInput?.addEventListener("input", () => {
+    dashboardApi.previewTheme();
+    notifyEdit(() => dashboardApi.save());
   });
 
   const nextBtn = document.getElementById("nextScreenBtn");
