@@ -31,6 +31,7 @@ import { icon } from "./icons.js";
  * @param {(meta: { id: number, slug: string | null }) => void} [options.onDashboardSwitch]
  * @param {() => void} [options.onOpenWidgetSettings]
  * @param {(id: number) => void} [options.onOpenDashboardSettings]
+ * @param {() => import("./snap.js").SnapSettings} [options.getSnapSettings]
  */
 export async function initDashboard({
   settingsMode,
@@ -50,6 +51,7 @@ export async function initDashboard({
   onDashboardSwitch,
   onOpenWidgetSettings,
   onOpenDashboardSettings,
+  getSnapSettings,
 }) {
   const loaded = await loadDashboard({ id: dashboardId, slug: dashboardSlug });
   /** @type {import("./data/defaults.js").DashboardData} */
@@ -76,6 +78,11 @@ export async function initDashboard({
         width: data.designWidth,
         height: data.designHeight,
       }),
+      getOtherWidgets: (excludeId) =>
+        getCurrentScreen().widgets.filter((w) => w.id !== excludeId),
+      getSnapSettings: () =>
+        getSnapSettings?.() ?? { edgeAlign: true, sizeMatch: true },
+      getCanvasScaler: () => canvasScaler,
     };
   }
 

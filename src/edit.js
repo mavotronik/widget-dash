@@ -76,7 +76,39 @@ async function main() {
   populateResolutionSelect(newResolutionPreset);
 
   const AUTO_ADVANCE_KEY = "editAutoAdvanceEnabled";
+  const SNAP_EDGE_ALIGN_KEY = "editSnapEdgeAlign";
+  const SNAP_SIZE_MATCH_KEY = "editSnapSizeMatch";
+
   let autoAdvanceEnabled = sessionStorage.getItem(AUTO_ADVANCE_KEY) === "true";
+
+  const snapEdgeAlignInput = /** @type {HTMLInputElement} */ (
+    document.getElementById("snapEdgeAlign")
+  );
+  const snapSizeMatchInput = /** @type {HTMLInputElement} */ (
+    document.getElementById("snapSizeMatch")
+  );
+
+  if (localStorage.getItem(SNAP_EDGE_ALIGN_KEY) === "false") {
+    snapEdgeAlignInput.checked = false;
+  }
+  if (localStorage.getItem(SNAP_SIZE_MATCH_KEY) === "false") {
+    snapSizeMatchInput.checked = false;
+  }
+
+  function getSnapSettings() {
+    return {
+      edgeAlign: snapEdgeAlignInput.checked,
+      sizeMatch: snapSizeMatchInput.checked,
+    };
+  }
+
+  snapEdgeAlignInput.addEventListener("change", () => {
+    localStorage.setItem(SNAP_EDGE_ALIGN_KEY, String(snapEdgeAlignInput.checked));
+  });
+
+  snapSizeMatchInput.addEventListener("change", () => {
+    localStorage.setItem(SNAP_SIZE_MATCH_KEY, String(snapSizeMatchInput.checked));
+  });
 
   const autoAdvanceToggle = document.getElementById("autoAdvanceToggle");
   const autoAdvanceIcon = document.getElementById("autoAdvanceIcon");
@@ -157,6 +189,7 @@ async function main() {
       const urlParams = slug ? `?slug=${encodeURIComponent(slug)}` : `?id=${id}`;
       history.replaceState(null, "", `/edit.html${urlParams}`);
     },
+    getSnapSettings,
   });
 
   dashboardApi.setOnNavigateComplete(() => scheduleAdvance());
