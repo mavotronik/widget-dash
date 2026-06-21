@@ -44,6 +44,7 @@ function syncResolutionInputsFromPreset(presetSelect, widthInput, heightInput) {
  * @param {HTMLSelectElement} options.resolutionPreset
  * @param {HTMLInputElement} options.designWidthInput
  * @param {HTMLInputElement} options.designHeightInput
+ * @param {HTMLInputElement} options.pingIntervalInput
  * @param {HTMLButtonElement} options.deleteBtn
  * @param {() => { id: number, name: string, slug: string | null }} options.getDashboardMeta
  * @param {() => import("./data/defaults.js").DashboardData} options.getData
@@ -53,6 +54,7 @@ function syncResolutionInputsFromPreset(presetSelect, widthInput, heightInput) {
  * @param {(payload: { name: string, slug: string | null }) => void} options.onUpdateMetaLocal
  * @param {() => Promise<import("./toast.js").ActionResult>} options.onPersistData
  * @param {() => Promise<void>} options.onAfterMetaSave
+ * @param {() => void} [options.onPingIntervalChange]
  * @param {(fn: () => Promise<import("./toast.js").ActionResult> | import("./toast.js").ActionResult) => void} options.notifyPersist
  * @param {() => Promise<import("./toast.js").ActionResult>} options.onDelete
  */
@@ -65,6 +67,7 @@ export function initDashboardSettings({
   resolutionPreset,
   designWidthInput,
   designHeightInput,
+  pingIntervalInput,
   deleteBtn,
   getDashboardMeta,
   getData,
@@ -74,6 +77,7 @@ export function initDashboardSettings({
   onUpdateMetaLocal,
   onPersistData,
   onAfterMetaSave,
+  onPingIntervalChange,
   notifyPersist,
   onDelete,
 }) {
@@ -81,8 +85,8 @@ export function initDashboardSettings({
 
   /** @type {{ name: string, slug: string | null }} */
   let lastSavedMeta = { name: "", slug: null };
-  /** @type {{ width: number, height: number }} */
-  let lastSavedResolution = { width: 0, height: 0 };
+  /** @type {{ width: number, height: number, pingIntervalMs: number }} */
+  let lastSavedResolution = { width: 0, height: 0, pingIntervalMs: 5000 };
   let isSyncing = false;
   /** @type {ReturnType<typeof setTimeout> | null} */
   let resolutionDebounceTimer = null;
@@ -108,7 +112,11 @@ export function initDashboardSettings({
     const meta = getDashboardMeta();
     const data = getData();
     lastSavedMeta = { name: meta.name, slug: meta.slug ?? null };
-    lastSavedResolution = { width: data.designWidth, height: data.designHeight };
+    lastSavedResolution = {
+      width: data.designWidth,
+      height: data.designHeight,
+      pingIntervalMs: data.pingIntervalMs ?? 5000,
+    };
   }
 
   function syncForm() {
@@ -122,6 +130,7 @@ export function initDashboardSettings({
     resolutionPreset.value = findPresetKeyForSize(data.designWidth, data.designHeight);
     designWidthInput.value = String(data.designWidth);
     designHeightInput.value = String(data.designHeight);
+    pingIntervalInput.value = String(data.pingIntervalMs ?? 5000);
     syncResolutionInputsFromPreset(resolutionPreset, designWidthInput, designHeightInput);
     syncSavedStateFromCurrent();
     isSyncing = false;
@@ -156,12 +165,17 @@ export function initDashboardSettings({
     }
 
     const { width, height } = readFormResolution();
+    const pingIntervalMs = Number(pingIntervalInput.value);
+    const nextPingIntervalMs = Number.isFinite(pingIntervalMs)
+      ? Math.min(60000, Math.max(500, Math.floor(pingIntervalMs)))
+      : 5000;
     const metaChanged =
       name !== lastSavedMeta.name || slug !== lastSavedMeta.slug;
     const resolutionChanged =
       width !== lastSavedResolution.width || height !== lastSavedResolution.height;
+    const pingIntervalChanged = nextPingIntervalMs !== lastSavedResolution.pingIntervalMs;
 
-    if (!metaChanged && !resolutionChanged) {
+    if (!metaChanged && !resolutionChanged && !pingIntervalChanged) {
       return { ok: true };
     }
 
@@ -177,10 +191,15 @@ export function initDashboardSettings({
       }
     }
 
-    if (resolutionChanged) {
+    if (resolutionChanged || pingIntervalChanged) {
+      const data = getData();
+      data.pingIntervalMs = nextPingIntervalMs;
       const result = await onPersistData();
       if (result.ok) {
-        lastSavedResolution = { width, height };
+        lastSavedResolution = { width, height, pingIntervalMs: nextPingIntervalMs };
+        if (pingIntervalChanged) {
+          onPingIntervalChange?.();
+        }
       } else {
         syncForm();
       }
@@ -273,6 +292,15 @@ export function initDashboardSettings({
       syncResolutionInputsFromPreset(resolutionPreset, designWidthInput, designHeightInput);
     }
     scheduleResolutionApply();
+  });
+
+  pingIntervalInput.addEventListener("input", () => {
+    if (isSyncing) return;
+    const pingIntervalMs = Number(pingIntervalInput.value);
+    getData().pingIntervalMs = Number.isFinite(pingIntervalMs)
+      ? Math.min(60000, Math.max(500, Math.floor(pingIntervalMs)))
+      : 5000;
+    schedulePersist();
   });
 
   deleteBtn.addEventListener("click", () => {

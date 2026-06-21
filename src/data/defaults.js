@@ -31,7 +31,7 @@
 /** @typedef {{ key: string, action: 'next' | 'goto', targetScreenIndex?: number }} EventTrigger */
 /** @typedef {{ advanceMode: 'timer' | 'button' | 'event', displayDuration: number, enterEffect: 'none' | 'fade' | 'slideUp' | 'slideDown' | 'overlay', animationDuration: number, eventTrigger?: EventTrigger }} ScreenTransition */
 /** @typedef {{ name: string, widgets: Widget[], transition: ScreenTransition }} Screen */
-/** @typedef {{ designWidth: number, designHeight: number, theme: { primary: string, background: string }, currentScreen: number, screens: Screen[] }} DashboardData */
+/** @typedef {{ designWidth: number, designHeight: number, pingIntervalMs: number, theme: { primary: string, background: string }, currentScreen: number, screens: Screen[] }} DashboardData */
 
 /** @returns {ScreenTransition} */
 export function defaultTransition() {
@@ -48,6 +48,7 @@ export function createEmptyDashboard(designWidth = 1920, designHeight = 1080) {
   return {
     designWidth,
     designHeight,
+    pingIntervalMs: 5000,
     theme: {
       primary: "#2196f3",
       background: "#111827",
@@ -67,6 +68,7 @@ export function createEmptyDashboard(designWidth = 1920, designHeight = 1080) {
 export const defaultData = {
   designWidth: 1920,
   designHeight: 1080,
+  pingIntervalMs: 5000,
   theme: {
     primary: "#2196f3",
     background: "#111827",

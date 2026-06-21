@@ -65,14 +65,28 @@ export async function initDashboard({
   /** @type {(() => void) | null} */
   let onNavigateComplete = null;
   const pingPoller = createPingPoller({
-    enabled: !settingsMode,
+    getScreens: () => data.screens,
+    getQueueIntervalMs: () => data.pingIntervalMs ?? 5000,
     onStatus: (widgetId, status) => {
-      const widget = getCurrentScreen().widgets.find((item) => item.id === widgetId);
-      if (!widget || widget.type !== "ping") return;
+      const widget = findPingWidget(widgetId);
+      if (!widget) return;
       widget.status = status;
-      refreshWidgetContent(widget);
+      if (getCurrentScreen().widgets.some((item) => item.id === widgetId)) {
+        refreshWidgetContent(widget);
+      }
     },
   });
+
+  function syncPingStatusesFromCache() {
+    const cache = pingPoller.getStatusCache();
+    for (const screen of data.screens) {
+      for (const widget of screen.widgets) {
+        if (widget.type === "ping" && cache.has(widget.id)) {
+          widget.status = cache.get(widget.id);
+        }
+      }
+    }
+  }
 
   /** @type {HTMLElement | null} */
   let canvasViewport = null;
@@ -176,6 +190,15 @@ export async function initDashboard({
   /** @returns {import("./data/defaults.js").Screen} */
   function getCurrentScreen() {
     return data.screens[data.currentScreen];
+  }
+
+  /** @param {number} widgetId */
+  function findPingWidget(widgetId) {
+    for (const screen of data.screens) {
+      const widget = screen.widgets.find((item) => item.id === widgetId && item.type === "ping");
+      if (widget) return widget;
+    }
+    return null;
   }
 
   /** @param {import("./data/defaults.js").Widget} widget */
@@ -374,6 +397,7 @@ export async function initDashboard({
     onDashboardSwitch?.({ id: meta.id, slug: meta.slug });
     render({ animate: false });
     await renderDashboardList();
+    pingPoller.start({ resetStatuses: true });
   }
 
   /**
@@ -382,12 +406,14 @@ export async function initDashboard({
    */
   async function reload(nextData, nextMeta) {
     data = nextData;
+    syncPingStatusesFromCache();
     if (nextMeta) meta = nextMeta;
     selectedWidgetId = null;
     onSelectionChange?.();
     updateViewLink();
     render({ animate: false });
     await renderDashboardList();
+    pingPoller.restart({ resetStatuses: false });
   }
 
   function updateLiveContent() {
@@ -397,8 +423,6 @@ export async function initDashboard({
     const screen = getCurrentScreen();
     const layer = scaler.querySelector(".screen-layer");
     if (!layer) return;
-
-    pingPoller.tick(screen.widgets);
 
     screen.widgets.forEach((widget) => {
       if (widget.type !== "clock" && widget.type !== "date" && widget.type !== "ping") return;
@@ -445,6 +469,8 @@ export async function initDashboard({
    */
   function render(options = {}) {
     if (settingsMode && isInteracting()) return;
+
+    syncPingStatusesFromCache();
 
     const screen = getCurrentScreen();
     screenTitle.textContent = settingsMode ? `${meta.name} — ${screen.name}` : meta.name;
@@ -647,7 +673,7 @@ export async function initDashboard({
     if (type === "ping") {
       widget.host = "localhost";
       widget.attempts = 2;
-      widget.intervalMs = 5000;
+      widget.intervalMs = 1000;
       widget.status = "unknown";
       widget.h = 90;
       widget.w = 260;
@@ -731,6 +757,7 @@ export async function initDashboard({
   updateViewLink();
   render({ animate: false });
   await renderDashboardList();
+  pingPoller.start({ resetStatuses: true });
 
   return {
     render: () => render({ animate: false }),
@@ -762,5 +789,7 @@ export async function initDashboard({
     renderDashboardList,
     updateDashboardMetaLocal,
     save,
+    restartPingPoller: () => pingPoller.restart({ resetStatuses: false }),
+    invalidatePingWidget: (widgetId) => pingPoller.invalidate(widgetId),
   };
 }

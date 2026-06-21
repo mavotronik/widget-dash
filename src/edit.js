@@ -224,6 +224,7 @@ async function main() {
     pingIntervalInput: document.getElementById("widgetPingIntervalMs"),
     deleteBtn: document.getElementById("widgetDeleteBtn"),
     getSelectedWidget: dashboardApi.getSelectedWidget,
+    onPingConfigChange: (widgetId) => dashboardApi.invalidatePingWidget?.(widgetId),
     onChange: () => {
       dashboardApi.render();
       notifyEdit(() => dashboardApi.save());
@@ -266,6 +267,7 @@ async function main() {
     resolutionPreset: document.getElementById("dashboardSettingsResolutionPreset"),
     designWidthInput: document.getElementById("dashboardSettingsDesignWidth"),
     designHeightInput: document.getElementById("dashboardSettingsDesignHeight"),
+    pingIntervalInput: document.getElementById("dashboardSettingsPingIntervalMs"),
     deleteBtn: document.getElementById("dashboardSettingsDeleteBtn"),
     getDashboardMeta: () => dashboardApi.getDashboardMeta(),
     getData: () => dashboardApi.getData(),
@@ -278,6 +280,7 @@ async function main() {
     onUpdateMetaLocal: (payload) => dashboardApi.updateDashboardMetaLocal(payload),
     onPersistData: () => dashboardApi.save(),
     onAfterMetaSave: () => dashboardApi.renderDashboardList(),
+    onPingIntervalChange: () => dashboardApi.restartPingPoller?.(),
     notifyPersist: notifyDashboardSettingsSave,
     onDelete: async () => {
       await deleteDashboard(dashboardApi.getDashboardId());

@@ -73,11 +73,7 @@ function normalizeWidget(widget) {
   } else if (type === "ping") {
     normalized.host = typeof w.host === "string" ? w.host.trim() : "";
     normalized.attempts = normalizeNumber(w.attempts, 2, 1, 10);
-    normalized.intervalMs = normalizeNumber(w.intervalMs, 5000, 500, 60000);
-    normalized.status =
-      w.status === "ok" || w.status === "fail" || w.status === "unknown"
-        ? w.status
-        : "unknown";
+    normalized.intervalMs = normalizeNumber(w.intervalMs, 1000, 500, 60000);
   }
 
   return normalized;
@@ -160,6 +156,8 @@ export function normalizeDashboard(data) {
   if (typeof data.designHeight !== "number" || data.designHeight < 240) {
     data.designHeight = 1080;
   }
+
+  data.pingIntervalMs = normalizeNumber(data.pingIntervalMs, 5000, 500, 60000);
 
   return /** @type {import("./defaults.js").DashboardData} */ (data);
 }

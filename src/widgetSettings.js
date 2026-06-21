@@ -55,6 +55,7 @@ function parseOptionalNumber(value) {
  * @param {HTMLButtonElement} options.deleteBtn
  * @param {() => import("./data/defaults.js").Widget | null} options.getSelectedWidget
  * @param {() => void} options.onChange
+ * @param {(widgetId: number) => void} [options.onPingConfigChange]
  * @param {() => void} options.onRender
  * @param {() => void} options.onClose
  * @param {() => import("./toast.js").ActionResult | Promise<import("./toast.js").ActionResult>} options.onDelete
@@ -91,6 +92,7 @@ export function initWidgetSettings({
   deleteBtn,
   getSelectedWidget,
   onChange,
+  onPingConfigChange,
   onRender,
   onClose,
   onDelete,
@@ -152,7 +154,7 @@ export function initWidgetSettings({
     if (widget.type === "ping") {
       pingHostInput.value = widget.host ?? "";
       pingAttemptsInput.value = String(widget.attempts ?? 2);
-      pingIntervalInput.value = String(widget.intervalMs ?? 5000);
+      pingIntervalInput.value = String(widget.intervalMs ?? 1000);
     }
   }
 
@@ -293,8 +295,9 @@ export function initWidgetSettings({
     widget.attempts = Number.isFinite(attempts) ? Math.min(10, Math.max(1, Math.floor(attempts))) : 2;
     widget.intervalMs = Number.isFinite(intervalMs)
       ? Math.min(60000, Math.max(500, Math.floor(intervalMs)))
-      : 5000;
+      : 1000;
     widget.status = "unknown";
+    onPingConfigChange?.(widget.id);
     onChange();
   }
 
