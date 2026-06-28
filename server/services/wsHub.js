@@ -1,4 +1,6 @@
 import { WebSocketServer } from "ws";
+import { sendHaSnapshotToClient } from "./homeAssistant.js";
+import { sendMqttSnapshotToClient } from "./mqttService.js";
 
 /** @type {WebSocketServer | null} */
 let wss = null;
@@ -9,6 +11,8 @@ export function initWsHub(server) {
 
   wss.on("connection", (ws) => {
     ws.on("error", () => {});
+    void sendHaSnapshotToClient(ws);
+    sendMqttSnapshotToClient(ws);
   });
 }
 

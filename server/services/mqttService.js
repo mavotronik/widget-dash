@@ -137,6 +137,17 @@ export function getCachedMqttValue(topic) {
   return topicCache.get(topic) ?? null;
 }
 
+/** @param {import("ws").WebSocket} ws */
+export function sendMqttSnapshotToClient(ws) {
+  if (ws.readyState !== 1) return;
+
+  for (const topic of subscribedTopics) {
+    const value = topicCache.get(topic);
+    if (value === undefined) continue;
+    ws.send(JSON.stringify({ type: "mqtt", topic, value }));
+  }
+}
+
 export async function testMqttConnection(override) {
   const testConfig = override ?? config;
   if (!testConfig?.host) {

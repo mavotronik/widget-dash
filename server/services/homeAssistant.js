@@ -159,8 +159,8 @@ async function pollOnce() {
       if (!entitySet.has(entity.entityId)) continue;
 
       const prev = stateCache.get(entity.entityId);
+      stateCache.set(entity.entityId, entity.state);
       if (prev !== entity.state) {
-        stateCache.set(entity.entityId, entity.state);
         broadcast({ type: "ha", entityId: entity.entityId, value: entity.state });
       }
     }
@@ -170,6 +170,21 @@ async function pollOnce() {
   } catch (err) {
     connected = false;
     lastError = err instanceof Error ? err.message : "Ошибка опроса";
+  }
+}
+
+/** @param {import("ws").WebSocket} ws */
+export async function sendHaSnapshotToClient(ws) {
+  if (ws.readyState !== 1) return;
+
+  if (config?.enabled && subscribedEntities.size > 0 && stateCache.size === 0) {
+    await pollOnce();
+  }
+
+  for (const entityId of subscribedEntities) {
+    const value = stateCache.get(entityId);
+    if (value === undefined) continue;
+    ws.send(JSON.stringify({ type: "ha", entityId, value }));
   }
 }
 
