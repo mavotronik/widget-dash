@@ -1,0 +1,15 @@
+services:
+  widget-dash:
+    build: .
+    container_name: widget-dash
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3001}:3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+    volumes:
+      - widget-dash-data:/app/data
+
+volumes:
+  widget-dash-data:
