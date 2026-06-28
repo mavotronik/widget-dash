@@ -1,17 +1,23 @@
 import express from "express";
 import cors from "cors";
+import { createServer } from "http";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import dashboardsRouter from "./routes/dashboards.js";
 import blueprintsRouter from "./routes/blueprints.js";
 import uploadRouter from "./routes/upload.js";
 import pingRouter from "./routes/ping.js";
+import settingsRouter, { applyIntegrations } from "./routes/settings.js";
+import integrationsRouter from "./routes/integrations.js";
+import { initWsHub } from "./services/wsHub.js";
+import { loadAppSettings } from "./db.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3001;
 const isProd = process.env.NODE_ENV === "production";
 
 const app = express();
+const server = createServer(app);
 
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
@@ -21,6 +27,8 @@ app.use("/api/dashboards", dashboardsRouter);
 app.use("/api/blueprints", blueprintsRouter);
 app.use("/api/upload", uploadRouter);
 app.use("/api/ping", pingRouter);
+app.use("/api/settings", settingsRouter);
+app.use("/api", integrationsRouter);
 
 if (isProd) {
   app.use(express.static(join(__dirname, "../dist")));
@@ -29,6 +37,9 @@ if (isProd) {
   });
 }
 
-app.listen(PORT, () => {
+initWsHub(server);
+applyIntegrations(loadAppSettings());
+
+server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });

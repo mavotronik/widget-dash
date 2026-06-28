@@ -1,6 +1,7 @@
 import { uploadImage } from "./storage.js";
 import { showConfirm } from "./confirmModal.js";
 import { runAction, showError } from "./toast.js";
+import { createEntityPicker } from "./entityPicker.js";
 
 const TYPE_NAMES = {
   clock: "Часы",
@@ -23,6 +24,11 @@ function parseOptionalNumber(value) {
   return Number.isFinite(num) ? num : undefined;
 }
 
+/** @param {0 | 1 | 2 | undefined} value */
+function parseQos(value) {
+  return value === 1 || value === 2 ? value : 0;
+}
+
 /**
  * @param {object} options
  * @param {HTMLElement} options.modal
@@ -39,16 +45,33 @@ function parseOptionalNumber(value) {
  * @param {HTMLInputElement} options.colorInput
  * @param {HTMLElement} options.textContentField
  * @param {HTMLInputElement} options.textInput
+ * @param {HTMLElement} options.textExternalFields
+ * @param {HTMLSelectElement} options.contentModeSelect
+ * @param {HTMLElement} options.textExternalSourceFields
+ * @param {HTMLSelectElement} options.textDataSourceSelect
+ * @param {HTMLElement} options.textHaField
+ * @param {HTMLElement} options.textHaPickerContainer
+ * @param {HTMLElement} options.textMqttField
+ * @param {HTMLInputElement} options.textMqttTopicInput
  * @param {HTMLInputElement} options.urlInput
  * @param {HTMLInputElement} options.fileInput
+ * @param {HTMLSelectElement} options.numericDataSourceSelect
+ * @param {HTMLElement} options.numericHaField
+ * @param {HTMLElement} options.numericHaPickerContainer
+ * @param {HTMLElement} options.numericMqttField
+ * @param {HTMLInputElement} options.numericMqttTopicInput
  * @param {HTMLInputElement} options.numericValueInput
  * @param {HTMLInputElement} options.numericMinInput
  * @param {HTMLInputElement} options.numericMaxInput
  * @param {HTMLInputElement} options.numericStepInput
  * @param {HTMLInputElement} options.buttonLabelInput
+ * @param {HTMLInputElement} options.buttonMqttTopicInput
+ * @param {HTMLSelectElement} options.buttonMqttQosSelect
  * @param {HTMLTextAreaElement} options.switchPositionsInput
  * @param {HTMLInputElement} options.switchSelectedInput
  * @param {HTMLSelectElement} options.switchEmitModeSelect
+ * @param {HTMLInputElement} options.switchMqttTopicInput
+ * @param {HTMLSelectElement} options.switchMqttQosSelect
  * @param {HTMLInputElement} options.pingHostInput
  * @param {HTMLInputElement} options.pingAttemptsInput
  * @param {HTMLInputElement} options.pingIntervalInput
@@ -61,43 +84,108 @@ function parseOptionalNumber(value) {
  * @param {() => import("./toast.js").ActionResult | Promise<import("./toast.js").ActionResult>} options.onDelete
  * @param {() => import("./toast.js").ActionResult | Promise<import("./toast.js").ActionResult>} options.onSave
  */
-export function initWidgetSettings({
-  modal,
-  title,
-  closeBtn,
-  textSettings,
-  imageSettings,
-  numericSettings,
-  buttonSettings,
-  switchSettings,
-  pingSettings,
-  fontSizeInput,
-  fontFamilySelect,
-  colorInput,
-  textContentField,
-  textInput,
-  urlInput,
-  fileInput,
-  numericValueInput,
-  numericMinInput,
-  numericMaxInput,
-  numericStepInput,
-  buttonLabelInput,
-  switchPositionsInput,
-  switchSelectedInput,
-  switchEmitModeSelect,
-  pingHostInput,
-  pingAttemptsInput,
-  pingIntervalInput,
-  deleteBtn,
-  getSelectedWidget,
-  onChange,
-  onPingConfigChange,
-  onRender,
-  onClose,
-  onDelete,
-  onSave,
-}) {
+export function initWidgetSettings(options) {
+  const {
+    modal,
+    title,
+    closeBtn,
+    textSettings,
+    imageSettings,
+    numericSettings,
+    buttonSettings,
+    switchSettings,
+    pingSettings,
+    fontSizeInput,
+    fontFamilySelect,
+    colorInput,
+    textContentField,
+    textInput,
+    textExternalFields,
+    contentModeSelect,
+    textExternalSourceFields,
+    textDataSourceSelect,
+    textHaField,
+    textHaPickerContainer,
+    textMqttField,
+    textMqttTopicInput,
+    urlInput,
+    fileInput,
+    numericDataSourceSelect,
+    numericHaField,
+    numericHaPickerContainer,
+    numericMqttField,
+    numericMqttTopicInput,
+    numericValueInput,
+    numericMinInput,
+    numericMaxInput,
+    numericStepInput,
+    buttonLabelInput,
+    buttonMqttTopicInput,
+    buttonMqttQosSelect,
+    switchPositionsInput,
+    switchSelectedInput,
+    switchEmitModeSelect,
+    switchMqttTopicInput,
+    switchMqttQosSelect,
+    pingHostInput,
+    pingAttemptsInput,
+    pingIntervalInput,
+    deleteBtn,
+    getSelectedWidget,
+    onChange,
+    onPingConfigChange,
+    onRender,
+    onClose,
+    onDelete,
+    onSave,
+  } = options;
+
+  const textHaPicker = createEntityPicker(textHaPickerContainer, {
+    getValue: () => getSelectedWidget()?.haEntityId ?? "",
+    onChange: (entityId) => {
+      const widget = getSelectedWidget();
+      if (!widget || widget.type !== "text") return;
+      widget.haEntityId = entityId;
+      onChange();
+    },
+  });
+
+  const numericHaPicker = createEntityPicker(numericHaPickerContainer, {
+    getValue: () => getSelectedWidget()?.haEntityId ?? "",
+    onChange: (entityId) => {
+      const widget = getSelectedWidget();
+      if (!widget || widget.type !== "numeric") return;
+      widget.haEntityId = entityId;
+      onChange();
+    },
+  });
+
+  function syncTextExternalVisibility(widget) {
+    const isTextWidget = widget.type === "text";
+    textExternalFields.hidden = !isTextWidget;
+
+    if (!isTextWidget) {
+      textContentField.hidden = widget.type === "clock" || widget.type === "date";
+      return;
+    }
+
+    const isExternal = widget.contentMode === "external";
+    textContentField.hidden = isExternal;
+    textExternalSourceFields.hidden = !isExternal;
+
+    if (isExternal) {
+      const isMqtt = widget.dataSource === "mqtt";
+      textHaField.hidden = isMqtt;
+      textMqttField.hidden = !isMqtt;
+    }
+  }
+
+  function syncNumericSourceVisibility(widget) {
+    const isMqtt = widget.dataSource === "mqtt";
+    numericHaField.hidden = isMqtt;
+    numericMqttField.hidden = !isMqtt;
+  }
+
   function syncForm() {
     const widget = getSelectedWidget();
 
@@ -121,10 +209,15 @@ export function initWidgetSettings({
     colorInput.value = widget.color || "#ffffff";
 
     if (widget.type === "text") {
-      textContentField.hidden = false;
+      contentModeSelect.value = widget.contentMode === "external" ? "external" : "local";
+      textDataSourceSelect.value = widget.dataSource === "mqtt" ? "mqtt" : "ha";
+      textMqttTopicInput.value = widget.mqttTopic ?? "";
       textInput.value = widget.text || "";
-    } else {
+      syncTextExternalVisibility(widget);
+      textHaPicker.refresh();
+    } else if (isTextType) {
       textContentField.hidden = true;
+      textExternalFields.hidden = true;
     }
 
     if (widget.type === "image") {
@@ -132,14 +225,20 @@ export function initWidgetSettings({
     }
 
     if (widget.type === "numeric") {
+      numericDataSourceSelect.value = widget.dataSource === "mqtt" ? "mqtt" : "ha";
+      numericMqttTopicInput.value = widget.mqttTopic ?? "";
       numericValueInput.value = String(widget.value ?? 0);
       numericMinInput.value = String(widget.min ?? 0);
       numericMaxInput.value = String(widget.max ?? 100);
       numericStepInput.value = String(widget.step ?? 1);
+      syncNumericSourceVisibility(widget);
+      numericHaPicker.refresh();
     }
 
     if (widget.type === "button") {
       buttonLabelInput.value = widget.label || "Кнопка";
+      buttonMqttTopicInput.value = widget.mqttPublishTopic ?? "";
+      buttonMqttQosSelect.value = String(widget.mqttQos ?? 0);
     }
 
     if (widget.type === "switch") {
@@ -149,6 +248,8 @@ export function initWidgetSettings({
       switchSelectedInput.max = String(Math.max(positions.length, 1));
       switchSelectedInput.value = String((widget.selectedIndex ?? 0) + 1);
       switchEmitModeSelect.value = widget.emitMode === "index" ? "index" : "name";
+      switchMqttTopicInput.value = widget.mqttPublishTopic ?? "";
+      switchMqttQosSelect.value = String(widget.mqttQos ?? 0);
     }
 
     if (widget.type === "ping") {
@@ -162,6 +263,10 @@ export function initWidgetSettings({
     const widget = getSelectedWidget();
     if (!widget) return;
     syncForm();
+    if (widget.type === "text" || widget.type === "numeric") {
+      textHaPicker.preload();
+      numericHaPicker.preload();
+    }
     modal.hidden = false;
   }
 
@@ -216,10 +321,51 @@ export function initWidgetSettings({
     onChange();
   });
 
+  contentModeSelect.addEventListener("change", () => {
+    const widget = getSelectedWidget();
+    if (!widget || widget.type !== "text") return;
+    widget.contentMode = contentModeSelect.value === "external" ? "external" : "local";
+    if (widget.contentMode === "external" && !widget.dataSource) {
+      widget.dataSource = "ha";
+    }
+    syncTextExternalVisibility(widget);
+    onChange();
+  });
+
+  textDataSourceSelect.addEventListener("change", () => {
+    const widget = getSelectedWidget();
+    if (!widget || widget.type !== "text") return;
+    widget.dataSource = textDataSourceSelect.value === "mqtt" ? "mqtt" : "ha";
+    syncTextExternalVisibility(widget);
+    onChange();
+  });
+
+  textMqttTopicInput.addEventListener("input", () => {
+    const widget = getSelectedWidget();
+    if (!widget || widget.type !== "text") return;
+    widget.mqttTopic = textMqttTopicInput.value.trim();
+    onChange();
+  });
+
   urlInput.addEventListener("change", () => {
     const widget = getSelectedWidget();
     if (!widget || widget.type !== "image") return;
     widget.url = urlInput.value.trim();
+    onChange();
+  });
+
+  numericDataSourceSelect.addEventListener("change", () => {
+    const widget = getSelectedWidget();
+    if (!widget || widget.type !== "numeric") return;
+    widget.dataSource = numericDataSourceSelect.value === "mqtt" ? "mqtt" : "ha";
+    syncNumericSourceVisibility(widget);
+    onChange();
+  });
+
+  numericMqttTopicInput.addEventListener("input", () => {
+    const widget = getSelectedWidget();
+    if (!widget || widget.type !== "numeric") return;
+    widget.mqttTopic = numericMqttTopicInput.value.trim();
     onChange();
   });
 
@@ -230,7 +376,6 @@ export function initWidgetSettings({
     const min = parseOptionalNumber(numericMinInput.value);
     const max = parseOptionalNumber(numericMaxInput.value);
     const step = parseOptionalNumber(numericStepInput.value);
-    const value = parseOptionalNumber(numericValueInput.value);
 
     widget.min = min ?? 0;
     widget.max = max ?? 100;
@@ -238,14 +383,10 @@ export function initWidgetSettings({
       [widget.min, widget.max] = [widget.max, widget.min];
     }
     widget.step = step && step > 0 ? step : 1;
-    const fallbackValue = widget.value ?? widget.min;
-    const nextValue = value ?? fallbackValue;
-    widget.value = Math.min(widget.max, Math.max(widget.min, nextValue));
 
     onChange();
   }
 
-  numericValueInput.addEventListener("input", updateNumericWidget);
   numericMinInput.addEventListener("input", updateNumericWidget);
   numericMaxInput.addEventListener("input", updateNumericWidget);
   numericStepInput.addEventListener("input", updateNumericWidget);
@@ -255,6 +396,20 @@ export function initWidgetSettings({
     if (!widget || widget.type !== "button") return;
     const next = buttonLabelInput.value.trim();
     widget.label = next || "Кнопка";
+    onChange();
+  });
+
+  buttonMqttTopicInput.addEventListener("input", () => {
+    const widget = getSelectedWidget();
+    if (!widget || widget.type !== "button") return;
+    widget.mqttPublishTopic = buttonMqttTopicInput.value.trim();
+    onChange();
+  });
+
+  buttonMqttQosSelect.addEventListener("change", () => {
+    const widget = getSelectedWidget();
+    if (!widget || widget.type !== "button") return;
+    widget.mqttQos = parseQos(Number(buttonMqttQosSelect.value));
     onChange();
   });
 
@@ -284,6 +439,20 @@ export function initWidgetSettings({
   switchPositionsInput.addEventListener("input", updateSwitchWidget);
   switchSelectedInput.addEventListener("input", updateSwitchWidget);
   switchEmitModeSelect.addEventListener("change", updateSwitchWidget);
+
+  switchMqttTopicInput.addEventListener("input", () => {
+    const widget = getSelectedWidget();
+    if (!widget || widget.type !== "switch") return;
+    widget.mqttPublishTopic = switchMqttTopicInput.value.trim();
+    onChange();
+  });
+
+  switchMqttQosSelect.addEventListener("change", () => {
+    const widget = getSelectedWidget();
+    if (!widget || widget.type !== "switch") return;
+    widget.mqttQos = parseQos(Number(switchMqttQosSelect.value));
+    onChange();
+  });
 
   function updatePingWidget() {
     const widget = getSelectedWidget();

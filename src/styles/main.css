@@ -150,6 +150,103 @@ body {
   cursor: pointer;
 }
 
+.toggle-btn-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.toggle-btn {
+  display: inline-block;
+  margin-bottom: 8px;
+}
+
+.toggle-btn--block {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.toggle-btn--block .toggle-btn-face {
+  width: 100%;
+}
+
+.toggle-btn-input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.toggle-btn-face {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 14px;
+  line-height: 1.2;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.toggle-btn-face .btn-icon {
+  font-size: 18px;
+  opacity: 0.85;
+}
+
+.toggle-btn-check {
+  margin-left: auto;
+  font-size: 16px;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.toggle-btn-face:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.toggle-btn-input:focus-visible + .toggle-btn-face {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.toggle-btn-input:checked + .toggle-btn-face {
+  background: color-mix(in srgb, var(--primary) 22%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 55%, transparent);
+  color: #fff;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 25%, transparent);
+}
+
+.toggle-btn-input:checked + .toggle-btn-face .btn-icon {
+  color: var(--primary);
+  opacity: 1;
+}
+
+.toggle-btn-input:checked + .toggle-btn-face .toggle-btn-check {
+  opacity: 1;
+  transform: scale(1);
+  color: var(--primary);
+}
+
+.toggle-btn-group .toggle-btn {
+  margin-bottom: 0;
+}
+
+.toggle-btn-group .toggle-btn-check {
+  margin-left: 4px;
+}
+
 .snap-guide {
   position: absolute;
   pointer-events: none;
@@ -644,6 +741,97 @@ textarea {
 
 .modal-dialog--confirm {
   max-width: 400px;
+}
+
+.modal-dialog--wide {
+  max-width: 560px;
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.settings-section-title {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.connection-status {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.connection-status--ok {
+  color: #4ade80;
+}
+
+.connection-status--error {
+  color: #f87171;
+}
+
+.entity-picker {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.entity-picker-selected {
+  font-size: 13px;
+  margin-bottom: 6px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.entity-picker-selected--empty {
+  color: rgba(255, 255, 255, 0.45);
+  font-style: italic;
+}
+
+.entity-picker-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.entity-picker-dropdown {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  z-index: 10;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.entity-picker-dropdown[hidden] {
+  display: none;
+}
+
+.entity-picker-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.entity-picker-option:hover,
+.entity-picker-option.is-selected {
+  background: rgba(33, 150, 243, 0.2);
+}
+
+.entity-picker-option--muted {
+  cursor: default;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.entity-picker-option--muted:hover {
+  background: transparent;
 }
 
 .confirm-message {

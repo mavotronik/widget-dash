@@ -4,6 +4,7 @@ import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { createEmptyDashboard, defaultData } from "../src/data/defaults.js";
 import { normalizeDashboard } from "../src/data/migrate.js";
+import { defaultAppSettings, normalizeAppSettings } from "../src/data/appSettings.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, "../data/dashboard.db");
@@ -55,6 +56,13 @@ db.exec(`
     description TEXT,
     data TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
   )
 `);
 
@@ -240,4 +248,52 @@ export function isSlugTaken(slug, excludeId) {
     ? db.prepare("SELECT id FROM dashboards WHERE slug = ? AND id != ?").get(slug, excludeId)
     : db.prepare("SELECT id FROM dashboards WHERE slug = ?").get(slug);
   return Boolean(row);
+}
+
+/** @returns {import("../src/data/appSettings.js").AppSettings} */
+export function loadAppSettings() {
+  const row = db.prepare("SELECT value FROM app_settings WHERE key = 'global'").get();
+
+  if (row) {
+    return normalizeAppSettings(JSON.parse(row.value));
+  }
+
+  const firstDashboard = db
+    .prepare("SELECT data FROM dashboards ORDER BY id LIMIT 1")
+    .get();
+
+  const settings = defaultAppSettings();
+
+  if (firstDashboard) {
+    const raw = JSON.parse(firstDashboard.data);
+    if (raw.theme && typeof raw.theme === "object") {
+      settings.theme = {
+        primary:
+          typeof raw.theme.primary === "string" ? raw.theme.primary : settings.theme.primary,
+        background:
+          typeof raw.theme.background === "string"
+            ? raw.theme.background
+            : settings.theme.background,
+      };
+    }
+  }
+
+  saveAppSettings(settings);
+  return settings;
+}
+
+/** @param {import("../src/data/appSettings.js").AppSettings} settings */
+export function saveAppSettings(settings) {
+  const normalized = normalizeAppSettings(settings);
+  db.prepare(
+    "INSERT INTO app_settings (key, value) VALUES ('global', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+  ).run(JSON.stringify(normalized));
+}
+
+/** @returns {import("../src/data/defaults.js").DashboardData[]} */
+export function listAllDashboardData() {
+  return db
+    .prepare("SELECT data FROM dashboards ORDER BY id")
+    .all()
+    .map((row) => normalizeDashboard(JSON.parse(row.data)));
 }

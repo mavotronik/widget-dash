@@ -25,13 +25,19 @@
  *   host?: string,
  *   attempts?: number,
  *   intervalMs?: number,
- *   status?: "unknown" | "ok" | "fail"
+ *   status?: "unknown" | "ok" | "fail",
+ *   contentMode?: "local" | "external",
+ *   dataSource?: "ha" | "mqtt",
+ *   haEntityId?: string,
+ *   mqttTopic?: string,
+ *   mqttPublishTopic?: string,
+ *   mqttQos?: 0 | 1 | 2
  * }} Widget
  */
 /** @typedef {{ key: string, action: 'next' | 'goto', targetScreenIndex?: number }} EventTrigger */
 /** @typedef {{ advanceMode: 'timer' | 'button' | 'event', displayDuration: number, enterEffect: 'none' | 'fade' | 'slideUp' | 'slideDown' | 'overlay', animationDuration: number, eventTrigger?: EventTrigger }} ScreenTransition */
 /** @typedef {{ name: string, widgets: Widget[], transition: ScreenTransition }} Screen */
-/** @typedef {{ designWidth: number, designHeight: number, pingIntervalMs: number, theme: { primary: string, background: string }, currentScreen: number, screens: Screen[] }} DashboardData */
+/** @typedef {{ designWidth: number, designHeight: number, pingIntervalMs: number, currentScreen: number, screens: Screen[] }} DashboardData */
 
 /** @returns {ScreenTransition} */
 export function defaultTransition() {
@@ -49,10 +55,6 @@ export function createEmptyDashboard(designWidth = 1920, designHeight = 1080) {
     designWidth,
     designHeight,
     pingIntervalMs: 5000,
-    theme: {
-      primary: "#2196f3",
-      background: "#111827",
-    },
     currentScreen: 0,
     screens: [
       {
@@ -69,10 +71,6 @@ export const defaultData = {
   designWidth: 1920,
   designHeight: 1080,
   pingIntervalMs: 5000,
-  theme: {
-    primary: "#2196f3",
-    background: "#111827",
-  },
   currentScreen: 0,
   screens: [
     {

@@ -2,12 +2,17 @@ import { initDashboard } from "./dashboard.js";
 import { initWidgetSettings } from "./widgetSettings.js";
 import { initScreenSettings } from "./screenSettings.js";
 import { initDashboardSettings } from "./dashboardSettings.js";
+import { initGlobalSettings } from "./globalSettings.js";
+import { initDataSources, onDataUpdate } from "./dataSources.js";
+import { setLiveSourcesModule } from "./widgets.js";
+import * as dataSources from "./dataSources.js";
 import { runAction, createDebouncedActionNotifier, showError } from "./toast.js";
 import {
   RESOLUTION_PRESETS,
   resolveResolution,
   findPresetKeyForSize,
 } from "./data/resolutions.js";
+import { defaultAppSettings } from "./data/appSettings.js";
 import {
   createDashboard,
   createBlueprint,
@@ -15,6 +20,7 @@ import {
   getBlueprint,
   deleteDashboard,
   updateDashboardMeta,
+  loadAppSettings,
 } from "./storage.js";
 
 /** @param {HTMLSelectElement} select */
@@ -102,20 +108,20 @@ async function main() {
     };
   }
 
-  snapEdgeAlignInput.addEventListener("change", () => {
-    localStorage.setItem(SNAP_EDGE_ALIGN_KEY, String(snapEdgeAlignInput.checked));
-  });
-
-  snapSizeMatchInput.addEventListener("change", () => {
-    localStorage.setItem(SNAP_SIZE_MATCH_KEY, String(snapSizeMatchInput.checked));
-  });
-
   const autoAdvanceToggle = document.getElementById("autoAdvanceToggle");
   const autoAdvanceIcon = document.getElementById("autoAdvanceIcon");
   const autoAdvanceLabel = document.getElementById("autoAdvanceLabel");
 
   const notifyEdit = createDebouncedActionNotifier("Редактирование");
   const notifyDashboardSettingsSave = createDebouncedActionNotifier("Редактирование");
+
+  let initialTheme = defaultAppSettings().theme;
+  try {
+    const appSettings = await loadAppSettings();
+    initialTheme = appSettings.theme;
+  } catch {
+    // use defaults
+  }
 
   function updateAutoAdvanceUi() {
     if (!autoAdvanceToggle || !autoAdvanceIcon || !autoAdvanceLabel) return;
@@ -177,6 +183,7 @@ async function main() {
     dashboardList: document.getElementById("dashboardList"),
     primaryColorInput: document.getElementById("primaryColor"),
     backgroundColorInput: document.getElementById("backgroundColor"),
+    initialTheme,
     dashboardId,
     dashboardSlug,
     viewDashboardLink: document.getElementById("viewDashboardLink"),
@@ -190,6 +197,38 @@ async function main() {
       history.replaceState(null, "", `/edit.html${urlParams}`);
     },
     getSnapSettings,
+  });
+
+  initGlobalSettings({
+    modal: document.getElementById("globalSettingsModal"),
+    openBtn: document.getElementById("globalSettingsBtn"),
+    closeBtn: document.getElementById("globalSettingsClose"),
+    primaryColorInput: document.getElementById("primaryColor"),
+    backgroundColorInput: document.getElementById("backgroundColor"),
+    snapEdgeAlignInput,
+    snapSizeMatchInput,
+    haEnabledInput: document.getElementById("haEnabled"),
+    haUrlInput: document.getElementById("haUrl"),
+    haTokenInput: document.getElementById("haToken"),
+    haTestBtn: document.getElementById("haTestBtn"),
+    haStatusEl: document.getElementById("haStatus"),
+    mqttEnabledInput: document.getElementById("mqttEnabled"),
+    mqttHostInput: document.getElementById("mqttHost"),
+    mqttPortInput: document.getElementById("mqttPort"),
+    mqttUseAuthInput: document.getElementById("mqttUseAuth"),
+    mqttUsernameInput: document.getElementById("mqttUsername"),
+    mqttPasswordInput: document.getElementById("mqttPassword"),
+    mqttTestBtn: document.getElementById("mqttTestBtn"),
+    mqttStatusEl: document.getElementById("mqttStatus"),
+    onThemeChange: (theme) => dashboardApi.applyThemeToDom(theme),
+    snapEdgeAlignKey: SNAP_EDGE_ALIGN_KEY,
+    snapSizeMatchKey: SNAP_SIZE_MATCH_KEY,
+  });
+
+  setLiveSourcesModule(dataSources);
+  initDataSources();
+  onDataUpdate(() => {
+    dashboardApi.refreshExternalWidgets();
   });
 
   dashboardApi.setOnNavigateComplete(() => scheduleAdvance());
@@ -209,16 +248,33 @@ async function main() {
     colorInput: document.getElementById("widgetColor"),
     textContentField: document.getElementById("textContentField"),
     textInput: document.getElementById("widgetText"),
+    textExternalFields: document.getElementById("textExternalFields"),
+    contentModeSelect: document.getElementById("widgetContentMode"),
+    textExternalSourceFields: document.getElementById("textExternalSourceFields"),
+    textDataSourceSelect: document.getElementById("widgetTextDataSource"),
+    textHaField: document.getElementById("widgetTextHaField"),
+    textHaPickerContainer: document.getElementById("widgetTextHaPicker"),
+    textMqttField: document.getElementById("widgetTextMqttField"),
+    textMqttTopicInput: document.getElementById("widgetTextMqttTopic"),
     urlInput: document.getElementById("widgetUrl"),
     fileInput: document.getElementById("widgetFile"),
+    numericDataSourceSelect: document.getElementById("widgetNumericDataSource"),
+    numericHaField: document.getElementById("widgetNumericHaField"),
+    numericHaPickerContainer: document.getElementById("widgetNumericHaPicker"),
+    numericMqttField: document.getElementById("widgetNumericMqttField"),
+    numericMqttTopicInput: document.getElementById("widgetNumericMqttTopic"),
     numericValueInput: document.getElementById("widgetNumericValue"),
     numericMinInput: document.getElementById("widgetNumericMin"),
     numericMaxInput: document.getElementById("widgetNumericMax"),
     numericStepInput: document.getElementById("widgetNumericStep"),
     buttonLabelInput: document.getElementById("widgetButtonLabel"),
+    buttonMqttTopicInput: document.getElementById("widgetButtonMqttTopic"),
+    buttonMqttQosSelect: document.getElementById("widgetButtonMqttQos"),
     switchPositionsInput: document.getElementById("widgetSwitchPositions"),
     switchSelectedInput: document.getElementById("widgetSwitchSelected"),
     switchEmitModeSelect: document.getElementById("widgetSwitchEmitMode"),
+    switchMqttTopicInput: document.getElementById("widgetSwitchMqttTopic"),
+    switchMqttQosSelect: document.getElementById("widgetSwitchMqttQos"),
     pingHostInput: document.getElementById("widgetPingHost"),
     pingAttemptsInput: document.getElementById("widgetPingAttempts"),
     pingIntervalInput: document.getElementById("widgetPingIntervalMs"),
@@ -422,19 +478,6 @@ async function main() {
 
   document.getElementById("addScreenBtn").addEventListener("click", () => {
     void runAction("Добавление", () => dashboardApi.addScreen());
-  });
-
-  const primaryColorInput = document.getElementById("primaryColor");
-  const backgroundColorInput = document.getElementById("backgroundColor");
-
-  primaryColorInput?.addEventListener("input", () => {
-    dashboardApi.previewTheme();
-    notifyEdit(() => dashboardApi.save());
-  });
-
-  backgroundColorInput?.addEventListener("input", () => {
-    dashboardApi.previewTheme();
-    notifyEdit(() => dashboardApi.save());
   });
 
   const nextBtn = document.getElementById("nextScreenBtn");

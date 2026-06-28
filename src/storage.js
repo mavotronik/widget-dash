@@ -1,5 +1,6 @@
 import { defaultData, createEmptyDashboard } from "./data/defaults.js";
 import { normalizeDashboard } from "./data/migrate.js";
+import { defaultAppSettings } from "./data/appSettings.js";
 
 /**
  * @param {object} [options]
@@ -223,5 +224,100 @@ export async function pingHost(payload) {
     throw new Error(text || `Ping error (${res.status})`);
   }
 
+  return res.json();
+}
+
+/** @returns {Promise<import("./data/appSettings.js").AppSettings>} */
+export async function loadAppSettings() {
+  try {
+    const res = await fetch("/api/settings");
+    if (!res.ok) throw new Error("Failed to load settings");
+    const payload = await res.json();
+
+    return {
+      theme: payload.theme,
+      homeAssistant: {
+        enabled: payload.homeAssistant?.enabled ?? false,
+        url: payload.homeAssistant?.url ?? "",
+        token: "",
+      },
+      mqtt: {
+        enabled: payload.mqtt?.enabled ?? false,
+        host: payload.mqtt?.host ?? "",
+        port: payload.mqtt?.port ?? 1883,
+        useAuth: payload.mqtt?.useAuth ?? false,
+        username: payload.mqtt?.username ?? "",
+        password: "",
+      },
+    };
+  } catch {
+    return defaultAppSettings();
+  }
+}
+
+/** @param {Partial<import("./data/appSettings.js").AppSettings> & { homeAssistant?: { token?: string }, mqtt?: { password?: string } }} settings */
+export async function saveAppSettings(settings) {
+  const res = await fetch("/api/settings", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || `Не удалось сохранить настройки (${res.status})`);
+  }
+
+  return res.json();
+}
+
+/** @returns {Promise<{ entityId: string, state: string, friendlyName: string }[]>} */
+export async function fetchHaEntities() {
+  const res = await fetch("/api/ha/entities");
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "Не удалось загрузить сущности");
+  }
+  return res.json();
+}
+
+/**
+ * @param {object} payload
+ * @param {string} payload.topic
+ * @param {string} payload.payload
+ * @param {0 | 1 | 2} [payload.qos]
+ */
+export async function publishMqtt(payload) {
+  const res = await fetch("/api/mqtt/publish", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "Не удалось опубликовать в MQTT");
+  }
+
+  return res.json();
+}
+
+/** @param {object} payload @param {string} [payload.url] @param {string} [payload.token] */
+export async function testHaConnection(payload = {}) {
+  const res = await fetch("/api/ha/test", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+}
+
+/** @param {object} payload */
+export async function testMqttConnection(payload = {}) {
+  const res = await fetch("/api/mqtt/test", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
   return res.json();
 }

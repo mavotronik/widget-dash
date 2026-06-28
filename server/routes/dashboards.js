@@ -15,6 +15,7 @@ import {
   generateSlug,
 } from "../db.js";
 import { createEmptyDashboard } from "../../src/data/defaults.js";
+import { refreshSubscriptions } from "../services/subscriptionManager.js";
 
 const router = Router();
 
@@ -74,6 +75,7 @@ router.post("/", (req, res) => {
       slug: created.slug,
       data: created.data,
     });
+    refreshSubscriptions();
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : "Ошибка создания" });
   }
@@ -111,6 +113,7 @@ router.put("/:id", (req, res) => {
   }
 
   saveDashboard(id, req.body);
+  refreshSubscriptions();
   res.json({ ok: true });
 });
 

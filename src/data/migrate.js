@@ -35,6 +35,12 @@ function normalizeWidget(widget) {
 
   if (type === "text") {
     normalized.text = typeof w.text === "string" ? w.text : "Новый текст";
+    normalized.contentMode = w.contentMode === "external" ? "external" : "local";
+    if (normalized.contentMode === "external") {
+      normalized.dataSource = w.dataSource === "mqtt" ? "mqtt" : "ha";
+      if (typeof w.haEntityId === "string") normalized.haEntityId = w.haEntityId.trim();
+      if (typeof w.mqttTopic === "string") normalized.mqttTopic = w.mqttTopic.trim();
+    }
   } else if (type === "image") {
     normalized.url = typeof w.url === "string" ? w.url.trim() : "";
   } else if (type === "numeric") {
@@ -46,8 +52,13 @@ function normalizeWidget(widget) {
     normalized.max = safeMax;
     normalized.step = normalizeNumber(w.step, 1, 0.000001, 1_000_000_000);
     normalized.value = normalizeNumber(w.value, 0, safeMin, safeMax);
+    normalized.dataSource = w.dataSource === "mqtt" ? "mqtt" : "ha";
+    if (typeof w.haEntityId === "string") normalized.haEntityId = w.haEntityId.trim();
+    if (typeof w.mqttTopic === "string") normalized.mqttTopic = w.mqttTopic.trim();
   } else if (type === "button") {
     normalized.label = typeof w.label === "string" && w.label.trim() ? w.label : "Кнопка";
+    if (typeof w.mqttPublishTopic === "string") normalized.mqttPublishTopic = w.mqttPublishTopic.trim();
+    normalized.mqttQos = w.mqttQos === 1 || w.mqttQos === 2 ? w.mqttQos : 0;
   } else if (type === "switch") {
     const positionsSource = Array.isArray(w.positions) ? w.positions : [];
     const positions = positionsSource
@@ -70,6 +81,8 @@ function normalizeWidget(widget) {
       normalized.positions.length - 1
     );
     normalized.emitMode = w.emitMode === "index" ? "index" : "name";
+    if (typeof w.mqttPublishTopic === "string") normalized.mqttPublishTopic = w.mqttPublishTopic.trim();
+    normalized.mqttQos = w.mqttQos === 1 || w.mqttQos === 2 ? w.mqttQos : 0;
   } else if (type === "ping") {
     normalized.host = typeof w.host === "string" ? w.host.trim() : "";
     normalized.attempts = normalizeNumber(w.attempts, 2, 1, 10);
@@ -145,9 +158,7 @@ export function normalizeDashboard(data) {
     data.currentScreen = 0;
   }
 
-  if (!data.theme) {
-    data.theme = { primary: "#2196f3", background: "#111827" };
-  }
+  delete data.theme;
 
   if (typeof data.designWidth !== "number" || data.designWidth < 320) {
     data.designWidth = 1920;

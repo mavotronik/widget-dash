@@ -1,5 +1,9 @@
 import { initDashboard } from "./dashboard.js";
-import { loadDashboard } from "./storage.js";
+import { loadDashboard, loadAppSettings } from "./storage.js";
+import { initDataSources, onDataUpdate } from "./dataSources.js";
+import { setLiveSourcesModule } from "./widgets.js";
+import * as dataSources from "./dataSources.js";
+import { defaultAppSettings } from "./data/appSettings.js";
 
 const POLL_INTERVAL_MS = 1000;
 
@@ -14,12 +18,27 @@ async function main() {
   const dashboardId = params.get("id") ? Number(params.get("id")) : undefined;
   const dashboardSlug = params.get("slug") ?? undefined;
 
+  let initialTheme = defaultAppSettings().theme;
+  try {
+    const appSettings = await loadAppSettings();
+    initialTheme = appSettings.theme;
+  } catch {
+    // use defaults
+  }
+
   const dashboardApi = await initDashboard({
     settingsMode: false,
     dashboard: document.getElementById("dashboard"),
     screenTitle: document.getElementById("screenTitle"),
+    initialTheme,
     dashboardId,
     dashboardSlug,
+  });
+
+  setLiveSourcesModule(dataSources);
+  initDataSources();
+  onDataUpdate(() => {
+    dashboardApi.refreshExternalWidgets();
   });
 
   let lastUpdatedAt = dashboardApi.getDashboardMeta().updatedAt;

@@ -17,6 +17,10 @@
   </div>
   <div id="screenTitle">Dashboard</div>
   <div class="topbar-actions">
+    <button type="button" class="btn btn-with-icon btn-secondary" id="globalSettingsBtn" title="Настройки">
+      <span class="mdi mdi-cog btn-icon" aria-hidden="true"></span>
+      <span>Настройки</span>
+    </button>
     <button type="button" class="btn btn-with-icon btn-secondary" id="autoAdvanceToggle" aria-pressed="false" title="Автопереход экранов по таймеру">
       <span class="mdi mdi-motion-pause btn-icon" id="autoAdvanceIcon" aria-hidden="true"></span>
       <span id="autoAdvanceLabel">Автопереход выкл</span>
@@ -40,27 +44,6 @@
       <span class="mdi mdi-content-save btn-icon" aria-hidden="true"></span>
       <span>Сохранить как blueprint</span>
     </button>
-
-    <hr class="divider">
-
-    <h3>Тема</h3>
-    <label for="primaryColor">Основной цвет</label>
-    <input type="color" id="primaryColor">
-    <label for="backgroundColor">Фон</label>
-    <input type="color" id="backgroundColor">
-    <p class="autosave-hint">Изменения сохраняются автоматически</p>
-
-    <hr class="divider">
-
-    <h3>Привязка</h3>
-    <label class="checkbox-label">
-      <input type="checkbox" id="snapEdgeAlign" checked>
-      Выравнивание границ
-    </label>
-    <label class="checkbox-label">
-      <input type="checkbox" id="snapSizeMatch" checked>
-      Подгонка размера
-    </label>
 
     <hr class="divider">
 
@@ -109,6 +92,112 @@
   </aside>
 
   <div class="dashboard" id="dashboard"></div>
+</div>
+
+<div id="globalSettingsModal" class="modal-overlay" hidden>
+  <div class="modal-dialog modal-dialog--wide">
+    <div class="modal-header">
+      <h3>Настройки</h3>
+      <button type="button" class="modal-close" id="globalSettingsClose" aria-label="Закрыть">
+        <span class="mdi mdi-close" aria-hidden="true"></span>
+      </button>
+    </div>
+    <div class="modal-body">
+      <section class="settings-section">
+        <h4 class="settings-section-title">Тема</h4>
+        <label for="primaryColor">Основной цвет</label>
+        <input type="color" id="primaryColor">
+        <label for="backgroundColor">Фон</label>
+        <input type="color" id="backgroundColor">
+      </section>
+
+      <hr class="divider">
+
+      <section class="settings-section">
+        <h4 class="settings-section-title">Привязка</h4>
+        <div class="toggle-btn-group">
+          <label class="toggle-btn">
+            <input type="checkbox" id="snapEdgeAlign" class="toggle-btn-input" checked>
+            <span class="toggle-btn-face">
+              <span class="mdi mdi-vector-square btn-icon" aria-hidden="true"></span>
+              <span>Выравнивание границ</span>
+              <span class="mdi mdi-check toggle-btn-check" aria-hidden="true"></span>
+            </span>
+          </label>
+          <label class="toggle-btn">
+            <input type="checkbox" id="snapSizeMatch" class="toggle-btn-input" checked>
+            <span class="toggle-btn-face">
+              <span class="mdi mdi-arrow-expand-all btn-icon" aria-hidden="true"></span>
+              <span>Подгонка размера</span>
+              <span class="mdi mdi-check toggle-btn-check" aria-hidden="true"></span>
+            </span>
+          </label>
+        </div>
+      </section>
+
+      <hr class="divider">
+
+      <section class="settings-section">
+        <h4 class="settings-section-title">Home Assistant</h4>
+        <label class="toggle-btn toggle-btn--block">
+          <input type="checkbox" id="haEnabled" class="toggle-btn-input">
+          <span class="toggle-btn-face">
+            <span class="mdi mdi-home-assistant btn-icon" aria-hidden="true"></span>
+            <span>Включить</span>
+            <span class="mdi mdi-check toggle-btn-check" aria-hidden="true"></span>
+          </span>
+        </label>
+        <label for="haUrl">URL</label>
+        <input type="url" id="haUrl" placeholder="http://homeassistant.local:8123">
+        <label for="haToken">Long-Lived Access Token</label>
+        <input type="password" id="haToken" placeholder="Long-Lived Access Token" autocomplete="off">
+        <button type="button" class="btn btn-secondary btn-with-icon" id="haTestBtn">
+          <span class="mdi mdi-connection btn-icon" aria-hidden="true"></span>
+          <span>Проверить подключение</span>
+        </button>
+        <p class="connection-status" id="haStatus"></p>
+      </section>
+
+      <hr class="divider">
+
+      <section class="settings-section">
+        <h4 class="settings-section-title">MQTT</h4>
+        <label class="toggle-btn toggle-btn--block">
+          <input type="checkbox" id="mqttEnabled" class="toggle-btn-input">
+          <span class="toggle-btn-face">
+            <span class="mdi mdi-antenna btn-icon" aria-hidden="true"></span>
+            <span>Включить</span>
+            <span class="mdi mdi-check toggle-btn-check" aria-hidden="true"></span>
+          </span>
+        </label>
+        <label for="mqttHost">Хост</label>
+        <input type="text" id="mqttHost" placeholder="localhost">
+        <label for="mqttPort">Порт</label>
+        <input type="number" id="mqttPort" min="1" max="65535" value="1883">
+        <label class="toggle-btn toggle-btn--block">
+          <input type="checkbox" id="mqttUseAuth" class="toggle-btn-input">
+          <span class="toggle-btn-face">
+            <span class="mdi mdi-lock-outline btn-icon" aria-hidden="true"></span>
+            <span>Авторизация</span>
+            <span class="mdi mdi-check toggle-btn-check" aria-hidden="true"></span>
+          </span>
+        </label>
+        <div id="mqttAuthFields" hidden>
+          <label for="mqttUsername">Имя пользователя</label>
+          <input type="text" id="mqttUsername" autocomplete="off">
+          <label for="mqttPassword">Пароль</label>
+          <input type="password" id="mqttPassword" autocomplete="new-password">
+        </div>
+        <button type="button" class="btn btn-secondary btn-with-icon" id="mqttTestBtn">
+          <span class="mdi mdi-connection btn-icon" aria-hidden="true"></span>
+          <span>Проверить подключение</span>
+        </button>
+        <p class="connection-status" id="mqttStatus"></p>
+      </section>
+
+      <p class="autosave-hint">Изменения сохраняются автоматически</p>
+    </div>
+  </div>
 </div>
 
 <div id="dashboardSettingsModal" class="modal-overlay" hidden>
@@ -281,6 +370,32 @@
           <label for="widgetText">Текст</label>
           <input type="text" id="widgetText">
         </div>
+
+        <div id="textExternalFields" hidden>
+          <label for="widgetContentMode">Режим</label>
+          <select id="widgetContentMode">
+            <option value="local">Локальный текст</option>
+            <option value="external">Внешние данные</option>
+          </select>
+
+          <div id="textExternalSourceFields" hidden>
+            <label for="widgetTextDataSource">Источник</label>
+            <select id="widgetTextDataSource">
+              <option value="ha">Home Assistant</option>
+              <option value="mqtt">MQTT</option>
+            </select>
+
+            <div id="widgetTextHaField" hidden>
+              <label>Сущность Home Assistant</label>
+              <div id="widgetTextHaPicker"></div>
+            </div>
+
+            <div id="widgetTextMqttField" hidden>
+              <label for="widgetTextMqttTopic">Топик подписки</label>
+              <input type="text" id="widgetTextMqttTopic" placeholder="home/sensor/temp">
+            </div>
+          </div>
+        </div>
       </div>
 
       <div id="imageSettings" hidden>
@@ -292,8 +407,24 @@
       </div>
 
       <div id="numericSettings" hidden>
-        <label for="widgetNumericValue">Значение</label>
-        <input type="number" id="widgetNumericValue" step="any">
+        <label for="widgetNumericDataSource">Источник</label>
+        <select id="widgetNumericDataSource">
+          <option value="ha">Home Assistant</option>
+          <option value="mqtt">MQTT</option>
+        </select>
+
+        <div id="widgetNumericHaField">
+          <label>Сущность Home Assistant</label>
+          <div id="widgetNumericHaPicker"></div>
+        </div>
+
+        <div id="widgetNumericMqttField" hidden>
+          <label for="widgetNumericMqttTopic">Топик подписки</label>
+          <input type="text" id="widgetNumericMqttTopic" placeholder="home/sensor/temp">
+        </div>
+
+        <label for="widgetNumericValue">Значение (только просмотр)</label>
+        <input type="number" id="widgetNumericValue" step="any" disabled>
 
         <label for="widgetNumericMin">Минимум</label>
         <input type="number" id="widgetNumericMin" step="any">
@@ -308,6 +439,16 @@
       <div id="buttonSettings" hidden>
         <label for="widgetButtonLabel">Текст кнопки</label>
         <input type="text" id="widgetButtonLabel" placeholder="Кнопка">
+
+        <label for="widgetButtonMqttTopic">Топик отправки (MQTT)</label>
+        <input type="text" id="widgetButtonMqttTopic" placeholder="home/button/action">
+
+        <label for="widgetButtonMqttQos">QoS</label>
+        <select id="widgetButtonMqttQos">
+          <option value="0">0</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+        </select>
       </div>
 
       <div id="switchSettings" hidden>
@@ -321,6 +462,16 @@
         <select id="widgetSwitchEmitMode">
           <option value="name">Имя позиции</option>
           <option value="index">Номер позиции</option>
+        </select>
+
+        <label for="widgetSwitchMqttTopic">Топик отправки (MQTT)</label>
+        <input type="text" id="widgetSwitchMqttTopic" placeholder="home/switch/state">
+
+        <label for="widgetSwitchMqttQos">QoS</label>
+        <select id="widgetSwitchMqttQos">
+          <option value="0">0</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
         </select>
       </div>
 

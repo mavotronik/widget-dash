@@ -18,6 +18,56 @@ function escapeHtml(value) {
 }
 
 /** @param {import("./data/defaults.js").Widget} widget */
+function resolveExternalTextValue(widget) {
+  if (widget.contentMode !== "external") {
+    return widget.text || "Текст";
+  }
+
+  if (!liveSourcesModule) return "—";
+
+  if (widget.dataSource === "mqtt" && widget.mqttTopic) {
+    return liveSourcesModule.getMqttValue(widget.mqttTopic) ?? "—";
+  }
+
+  if (widget.haEntityId) {
+    return liveSourcesModule.getHaValue(widget.haEntityId) ?? "—";
+  }
+
+  return "—";
+}
+
+/** @param {import("./data/defaults.js").Widget} widget */
+function resolveNumericValue(widget) {
+  if (!liveSourcesModule) return "—";
+
+  let raw = null;
+
+  if (widget.dataSource === "mqtt" && widget.mqttTopic) {
+    raw = liveSourcesModule.getMqttValue(widget.mqttTopic);
+  } else if (widget.haEntityId) {
+    raw = liveSourcesModule.getHaValue(widget.haEntityId);
+  }
+
+  if (raw === null) return "—";
+
+  const num = parseFloat(raw);
+  if (!Number.isFinite(num)) return raw;
+
+  const min = typeof widget.min === "number" ? widget.min : num;
+  const max = typeof widget.max === "number" ? widget.max : num;
+  const clamped = Math.min(max, Math.max(min, num));
+  return String(clamped);
+}
+
+/** @type {typeof import("./dataSources.js") | null} */
+let liveSourcesModule = null;
+
+/** @param {typeof import("./dataSources.js")} module */
+export function setLiveSourcesModule(module) {
+  liveSourcesModule = module;
+}
+
+/** @param {import("./data/defaults.js").Widget} widget */
 export function renderWidgetContent(widget) {
   const style = getTextStyleAttrs(widget);
 
@@ -26,16 +76,26 @@ export function renderWidgetContent(widget) {
       return `<div class="clock"${style}>${new Date().toLocaleTimeString()}</div>`;
     case "date":
       return `<div class="date"${style}>${new Date().toLocaleDateString()}</div>`;
-    case "text":
-      return `<div class="text-widget"${style}>${widget.text || "Текст"}</div>`;
+    case "text": {
+      const text =
+        widget.contentMode === "external" && liveSourcesModule
+          ? escapeHtml(resolveExternalTextValue(widget))
+          : escapeHtml(widget.text || "Текст");
+      return `<div class="text-widget"${style}>${text}</div>`;
+    }
     case "image":
       if (!widget.url) {
         return `<div class="image-placeholder">Укажите изображение</div>`;
       }
       return `<div class="image-widget"><img src="${widget.url}" alt=""></div>`;
     case "numeric": {
-      const value = typeof widget.value === "number" ? widget.value : 0;
-      return `<div class="numeric-widget"${style}>${value}</div>`;
+      const value =
+        liveSourcesModule && widget.dataSource
+          ? resolveNumericValue(widget)
+          : typeof widget.value === "number"
+            ? String(widget.value)
+            : "0";
+      return `<div class="numeric-widget"${style}>${escapeHtml(value)}</div>`;
     }
     case "button": {
       const label = escapeHtml(widget.label || "Кнопка");

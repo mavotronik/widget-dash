@@ -12,6 +12,10 @@ import {
 } from "./scale.js";
 import { icon } from "./icons.js";
 import { createPingPoller } from "./ping.js";
+import { publishMqttMessage } from "./dataSources.js";
+
+/** @type {{ primary: string, background: string }} */
+let appTheme = { primary: "#2196f3", background: "#111827" };
 
 /**
  * @param {object} options
@@ -22,6 +26,7 @@ import { createPingPoller } from "./ping.js";
  * @param {HTMLElement} [options.dashboardList]
  * @param {HTMLInputElement} [options.primaryColorInput]
  * @param {HTMLInputElement} [options.backgroundColorInput]
+ * @param {{ primary: string, background: string }} [options.initialTheme]
  * @param {number} [options.dashboardId]
  * @param {string} [options.dashboardSlug]
  * @param {HTMLAnchorElement} [options.viewDashboardLink]
@@ -42,6 +47,7 @@ export async function initDashboard({
   dashboardList,
   primaryColorInput,
   backgroundColorInput,
+  initialTheme,
   dashboardId,
   dashboardSlug,
   viewDashboardLink,
@@ -57,6 +63,9 @@ export async function initDashboard({
   const loaded = await loadDashboard({ id: dashboardId, slug: dashboardSlug });
   /** @type {import("./data/defaults.js").DashboardData} */
   let data = loaded.data;
+  if (initialTheme) {
+    appTheme = initialTheme;
+  }
   /** @type {{ id: number, name: string, slug: string | null, updatedAt: string }} */
   let meta = loaded.meta;
   /** @type {number | null} */
@@ -114,13 +123,14 @@ export async function initDashboard({
     return saveData(meta.id, data);
   }
 
-  function applyThemeToDom() {
-    document.documentElement.style.setProperty("--primary", data.theme.primary);
-    document.documentElement.style.setProperty("--background", data.theme.background);
-    if (primaryColorInput) primaryColorInput.value = data.theme.primary;
-    if (backgroundColorInput) backgroundColorInput.value = data.theme.background;
+  function applyThemeToDom(theme = appTheme) {
+    appTheme = theme;
+    document.documentElement.style.setProperty("--primary", theme.primary);
+    document.documentElement.style.setProperty("--background", theme.background);
+    if (primaryColorInput) primaryColorInput.value = theme.primary;
+    if (backgroundColorInput) backgroundColorInput.value = theme.background;
     if (canvasViewport) {
-      canvasViewport.style.background = data.theme.background;
+      canvasViewport.style.background = theme.background;
     }
   }
 
@@ -260,16 +270,27 @@ export async function initDashboard({
           const button = el.querySelector('[data-role="widget-button"]');
           if (button) {
             let pressed = false;
+            const topic = widget.mqttPublishTopic?.trim();
+            const qos = widget.mqttQos === 1 || widget.mqttQos === 2 ? widget.mqttQos : 0;
+
             const release = () => {
               if (!pressed) return;
               pressed = false;
               button.classList.remove("is-pressed");
-              console.info("button event", { widgetId: widget.id, event: "released" });
+              if (topic) {
+                void publishMqttMessage(topic, "released", qos).catch((err) => {
+                  console.error("MQTT publish failed:", err);
+                });
+              }
             };
             button.addEventListener("pointerdown", () => {
               pressed = true;
               button.classList.add("is-pressed");
-              console.info("button event", { widgetId: widget.id, event: "pressed" });
+              if (topic) {
+                void publishMqttMessage(topic, "pressed", qos).catch((err) => {
+                  console.error("MQTT publish failed:", err);
+                });
+              }
             });
             button.addEventListener("pointerup", release);
             button.addEventListener("pointercancel", release);
@@ -292,9 +313,16 @@ export async function initDashboard({
             refreshWidgetContent(widget);
             const value =
               widget.emitMode === "index"
-                ? nextIndex + 1
+                ? String(nextIndex + 1)
                 : positions[nextIndex]?.name ?? String(nextIndex + 1);
-            console.info("switch event", { widgetId: widget.id, value });
+
+            const topic = widget.mqttPublishTopic?.trim();
+            if (topic) {
+              const qos = widget.mqttQos === 1 || widget.mqttQos === 2 ? widget.mqttQos : 0;
+              void publishMqttMessage(topic, value, qos).catch((err) => {
+                console.error("MQTT publish failed:", err);
+              });
+            }
           });
         }
       }
@@ -425,12 +453,24 @@ export async function initDashboard({
     if (!layer) return;
 
     screen.widgets.forEach((widget) => {
-      if (widget.type !== "clock" && widget.type !== "date" && widget.type !== "ping") return;
+      const needsLiveUpdate =
+        widget.type === "clock" ||
+        widget.type === "date" ||
+        widget.type === "ping" ||
+        (widget.type === "text" && widget.contentMode === "external") ||
+        widget.type === "numeric";
+
+      if (!needsLiveUpdate) return;
+
       const el = layer.querySelector(`[data-widget-id="${widget.id}"] .widget-content`);
       if (el) {
         el.innerHTML = renderWidgetContent(widget);
       }
     });
+  }
+
+  function refreshExternalWidgets() {
+    updateLiveContent();
   }
 
   /** @returns {import("./data/defaults.js").Widget | null} */
@@ -642,6 +682,7 @@ export async function initDashboard({
 
     if (type === "text") {
       widget.text = "Новый текст";
+      widget.contentMode = "local";
     }
 
     if (type === "image") {
@@ -654,6 +695,7 @@ export async function initDashboard({
       widget.min = 0;
       widget.max = 100;
       widget.step = 1;
+      widget.dataSource = "ha";
     }
 
     if (type === "button") {
@@ -688,17 +730,18 @@ export async function initDashboard({
     return save();
   }
 
-  async function applyTheme() {
-    previewTheme();
-    return save();
-  }
+  function previewTheme(theme) {
+    if (theme) {
+      applyThemeToDom(theme);
+      return;
+    }
 
-  function previewTheme() {
     if (!primaryColorInput || !backgroundColorInput) return;
 
-    data.theme.primary = primaryColorInput.value;
-    data.theme.background = backgroundColorInput.value;
-    applyThemeToDom();
+    applyThemeToDom({
+      primary: primaryColorInput.value,
+      background: backgroundColorInput.value,
+    });
   }
 
   /**
@@ -769,8 +812,9 @@ export async function initDashboard({
     handleExternalEvent,
     addScreen,
     addWidget,
-    applyTheme,
     previewTheme,
+    applyThemeToDom,
+    refreshExternalWidgets,
     applyResolution,
     applyResolutionPreview,
     checkResolutionBounds,
